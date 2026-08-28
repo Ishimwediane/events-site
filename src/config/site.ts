@@ -6,13 +6,14 @@
  * NEXT_PUBLIC_FEATURES and its page 404s and its nav entry disappears, but the
  * code stays here for the full-platform build.
  */
+import { envOr } from "@/lib/env";
 
 export type Feature = "events" | "tickets" | "voting" | "gallery";
 
 const ALL_FEATURES: Feature[] = ["events", "tickets", "voting", "gallery"];
 
 const enabled = new Set<Feature>(
-  (process.env.NEXT_PUBLIC_FEATURES ?? ALL_FEATURES.join(","))
+  envOr(process.env.NEXT_PUBLIC_FEATURES, ALL_FEATURES.join(","))
     .split(",")
     .map((f) => f.trim())
     .filter((f): f is Feature => (ALL_FEATURES as string[]).includes(f)),

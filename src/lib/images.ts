@@ -1,9 +1,10 @@
+import { envOr } from "./env";
 /**
  * Flyers and nominee photos come back from Django either as a full Cloudinary
  * URL or as a relative media path, depending on how the record was created.
  * Normalise both into something <Image> can load.
  */
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(
+const API_ORIGIN = envOr(process.env.NEXT_PUBLIC_API_URL, "http://localhost:8000/api").replace(
   /\/api\/?$/,
   "",
 );

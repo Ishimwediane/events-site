@@ -5,8 +5,9 @@
  * helpers return empty results rather than throwing, so a public marketing page
  * degrades to an empty state instead of a 500. Failures are logged server-side.
  */
+import { envOr } from "./env";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+export const API_URL = envOr(process.env.NEXT_PUBLIC_API_URL, "http://localhost:8000/api");
 
 /** How long a page may serve cached API data before refetching, in seconds. */
 const REVALIDATE = 60;
