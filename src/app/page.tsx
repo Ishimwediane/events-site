@@ -2,6 +2,9 @@ import Link from "next/link";
 import Hero from "@/components/Hero";
 import FeaturedEvent from "@/components/FeaturedEvent";
 import ServicesSection from "@/components/ServicesSection";
+import EventRecapSection from "@/components/EventRecapSection";
+import TestimonialsSection from "@/components/TestimonialsSection";
+import PartnersSection from "@/components/PartnersSection";
 import EventCard from "@/components/EventCard";
 import MiniHeader from "@/components/MiniHeader";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -64,31 +67,11 @@ export default async function HomePage() {
 
       <ServicesSection />
 
-      {past.length > 0 && (
-        <section className="py-20 bg-white">
-          <div className="container-custom">
-            <ScrollReveal animation="fadeInDown">
-              <MiniHeader className="mb-12">Event History</MiniHeader>
-            </ScrollReveal>
+      <EventRecapSection upcoming={upcoming} past={past} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {past.slice(0, 3).map((event, i) => (
-                <ScrollReveal key={event.id} animation="scaleIn" delay={i * 0.1}>
-                  <EventCard event={event} past />
-                </ScrollReveal>
-              ))}
-            </div>
+      <TestimonialsSection />
 
-            {past.length > 3 && (
-              <div className="flex justify-center mt-12">
-                <Link href="/events" className="btn-outline">
-                  See All Events
-                </Link>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      <PartnersSection />
     </>
   );
 }

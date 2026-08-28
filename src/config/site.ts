@@ -147,3 +147,59 @@ export function activeHeroSlides() {
   const slides = heroSlides.filter((s) => !s.feature || isEnabled(s.feature));
   return slides.length > 0 ? slides : [heroSlides[0]];
 }
+
+export type Partner = { name: string; logo: string };
+
+/** Partner logos, carried over from the Ozone Entertainment website. */
+export const partners: Partner[] = [
+  { name: "Imvunwa", logo: "/images/partners/imvunwa.jpg" },
+  { name: "Vexta", logo: "/images/partners/vexta.png" },
+  { name: "Ebroz", logo: "/images/partners/ebroz.jpg" },
+];
+
+/**
+ * Testimonials.
+ *
+ * The first is the client's own existing copy from the Ozone Entertainment
+ * website, kept verbatim because it is about an event.
+ *
+ * The other two on that site were about film production and the modelling
+ * programme — both service lines this site no longer carries — so they are
+ * bracketed placeholders. They are deliberately NOT replaced with invented
+ * quotes: a testimonial is a claim a named person made, and making those up
+ * would put fake reviews on a live site. Ozone supplies the real ones.
+ */
+export type Testimonial = {
+  name: string;
+  role: string;
+  content: string;
+  tint: "navy" | "orange";
+  rotation: string;
+};
+
+export const testimonials: Testimonial[] = [
+  {
+    name: "Sarah Johnson",
+    role: "Event Organizer",
+    content:
+      "Ozone Entertainment made our corporate event absolutely spectacular. The location was perfect, staff was friendly and the execution was amazing. Professional, creative, and reliable!",
+    tint: "navy",
+    rotation: "-rotate-2",
+  },
+  {
+    name: "[CLIENT NAME]",
+    role: "[THEIR ROLE]",
+    content:
+      "[Replace with a real quote — someone who bought tickets, hosted with you, or attended. Two or three sentences in their own words.]",
+    tint: "orange",
+    rotation: "rotate-0",
+  },
+  {
+    name: "[CLIENT NAME]",
+    role: "[THEIR ROLE]",
+    content:
+      "[Replace with a real quote. If you only have one genuine testimonial, delete these two entries in src/config/site.ts — the section lays out fine with one or two.]",
+    tint: "navy",
+    rotation: "rotate-2",
+  },
+];
