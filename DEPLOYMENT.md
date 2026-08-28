@@ -2,105 +2,132 @@
 
 This replaces the previous corporate site (`Ozone/ozone-website`) on that domain.
 
-## Blocker: the API must be reachable from the internet
+**API:** `https://event-backend-tex3.onrender.com/api` (Render, backed by the same Supabase
+database as local development).
 
-This site is not standalone — every page reads from the Django API in `../backend`. Locally that
-is `http://localhost:8000/api`. **Deployed with that value, every page renders an empty state**:
-no events, no ticket tiers, no voting, and the RIMBA feature disappears from the home page.
+## Already verified
 
-So before the domain moves, answer this: **where is the Django API deployed?**
+A production build of this site was run against that API before writing this. All of it works:
 
-- If it is already deployed (the `../backend/build.sh` script looks like a Render build hook), get
-  that origin — it is in the existing Vercel project's `NEXT_PUBLIC_API_URL` env var, under
-  Settings → Environment Variables.
-- If it is not deployed, it has to be deployed first. The site can go live without it, but nothing
-  on it will work.
+- events, ticket tiers and prices come back correctly
+- flyers load from Cloudinary through Next's image optimiser
+- every route returns 200; the old URLs 301 correctly
+- CORS from `www.ozoneentertainmentz.com` is already allowed (see below)
 
-## 1. Environment variables
+So there is no code change needed to go live — only Vercel configuration.
 
-In the Vercel project, Settings → Environment Variables, for Production:
+## 1. Import the repo
+
+Vercel → **Add New → Project** → import `Ishimwediane/events-site`.
+Framework preset Next.js, root directory = repository root, build settings default.
+
+## 2. Environment variables
+
+Settings → Environment Variables, scope **Production**:
 
 | Variable | Value |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `https://<your-api-host>/api` — **not** localhost |
+| `NEXT_PUBLIC_API_URL` | `https://event-backend-tex3.onrender.com/api` |
 | `NEXT_PUBLIC_FEATURES` | `events,tickets,voting,gallery` |
 | `EMAIL_USER` | `ozoneentertainments1@gmail.com` |
 | `EMAIL_PASS` | the Gmail app password |
 | `CONTACT_EMAIL` | `ozoneentertainments1@gmail.com` |
 
-`NEXT_PUBLIC_*` values are baked in at build time, so changing them needs a redeploy, not just a
+`NEXT_PUBLIC_*` values are compiled in at build time, so changing one needs a **redeploy**, not a
 restart.
 
-## 2. Django has to allow the new origin
+## 3. CORS — nothing to do, but know why
 
-Ticket purchase runs in the browser (`POST /tickets/checkout/purchase/`), so it is subject to CORS.
-`backend/ozone/settings/prod.py` defaults `CORS_ALLOWED_ORIGINS` to an **empty list**, which means
-the browser will block the purchase request and buyers will see a network error.
+`backend/ozone/settings/base.py:228` sets `CORS_ALLOW_ALL_ORIGINS = True`, and `prod.py` never
+turns it off. The API therefore answers every origin with
+`access-control-allow-origin: *`, confirmed against the live Render deployment. Ticket purchase
+from the new domain will work with no change.
 
-On the API host, set:
+The catch: `prod.py:35` builds a `CORS_ALLOWED_ORIGINS` allowlist that **has no effect** —
+`CORS_ALLOW_ALL_ORIGINS` wins. Combined with `AllowAny` on
+`/tickets/checkout/purchase/`, any website on the internet can create tickets against this API.
+That is not a launch blocker, but it should be closed:
+
+```python
+# prod.py — make the allowlist actually apply
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+```
+
+then on Render set:
 
 ```
-CORS_ALLOWED_ORIGINS=https://www.ozoneentertainmentz.com,https://ozoneentertainmentz.com
-ALLOWED_HOSTS=<your-api-host>
+CORS_ALLOWED_ORIGINS=https://www.ozoneentertainmentz.com,https://ozoneentertainmentz.com,https://events.ozoneentertainmentz.com
 ```
 
-Page content itself is fetched server-side and is unaffected by CORS — which is why the site can
-look fine while buying a ticket still fails. Test an actual purchase, not just the page load.
+Include `events.` — that is the organiser dashboard, and it would otherwise break.
 
-## 3. Deploy, and check it on the Vercel URL first
+## 4. Render cold starts
 
-Do not point the domain at it yet.
+Render's free tier sleeps after about 15 minutes idle. The first request then takes **5–10 seconds**
+(measured: 7.0s cold, well under a second warm).
 
-1. Vercel → Add New → Project → import `Ishimwediane/events-site`.
-2. Framework preset: Next.js. Root directory: repository root. Build command and output: defaults.
-3. Set the env vars above, then deploy.
-4. Open the `*.vercel.app` URL and confirm, with the production API:
-   - the home page features an upcoming event with real prices
-   - `/events` lists upcoming and past events
-   - `/voting` shows campaigns, or its empty state if none are published
-   - `/gallery` shows the photos
-   - **a real ticket purchase succeeds and the QR email arrives**
-   - the contact form sends
+Pages are statically generated with a 60-second revalidate window, so visitors are served cached
+HTML and do not wait for a cold API. Two places where the delay does show:
 
-Only move on once a purchase works end to end.
+- the first ticket purchase after an idle spell — the buyer waits on a live POST
+- a background revalidation that lands on a sleeping API — the page keeps serving stale content,
+  so no one sees an error
 
-## 4. Move the domain
+If that becomes annoying, either move the API to a paid Render instance or ping
+`/api/events/` every 10 minutes from a cron.
+
+## 5. Deploy and test on the vercel.app URL — leave the domain alone for now
+
+Open the `*.vercel.app` URL and confirm:
+
+- home features RIMBA with real prices
+- `/events` lists upcoming and past
+- `/voting` shows its empty state (the Agaciro campaign is still `DRAFT`)
+- `/gallery` shows the photos and the lightbox works
+- the contact form sends a real email
+- **a real ticket purchase completes and the QR email arrives**
+
+Only move the domain once that purchase works end to end.
+
+## 6. Move the domain
 
 A domain can only be attached to one Vercel project at a time, so it must be removed from the old
-one first. There is a gap of a minute or two between the two steps — do it at a quiet hour.
+project first. There is a gap of a minute or two — do it at a quiet hour.
 
-1. Old project (`ozone-website`) → Settings → Domains → remove `www.ozoneentertainmentz.com` and
+1. Old project (`ozone-website`) → Settings → Domains → remove `www.ozoneentertainmentz.com` **and**
    the apex `ozoneentertainmentz.com`.
 2. New project (`events-site`) → Settings → Domains → add `www.ozoneentertainmentz.com`, then add
-   `ozoneentertainmentz.com` and set it to redirect to the `www` host.
-3. DNS does not need changing if both projects are on the same Vercel account — the records already
-   point at Vercel. Vercel reissues the TLS certificate automatically, usually within minutes.
-4. Do not delete the old project. Keep it deployed on its `*.vercel.app` URL until the new site has
-   been live for a while — it is the rollback.
+   the apex and set it to redirect to the `www` host.
+3. **DNS needs no changes** if both projects are on the same Vercel account — the records already
+   point at Vercel. TLS reissues automatically, usually within minutes.
+4. **Do not delete the old project.** Keep it deployed on its `*.vercel.app` URL — that is the
+   rollback.
 
-## 5. Afterwards
+## 7. Afterwards
 
-- Check `https://www.ozoneentertainmentz.com/portfolio` redirects to `/gallery`, and that
-  `/services/naf-model-empire` and `/about` redirect to `/`. Those redirects live in
-  `next.config.ts`.
-- The ticketing platform stays where it is on `events.ozoneentertainmentz.com` — nothing in this
-  move touches it.
-- Submit the new sitemap in Google Search Console. The removed pages will drop out of the index
-  over a few weeks; the 301s pass their ranking on.
+- Check `/portfolio` → `/gallery`, and `/about` and `/services/naf-model-empire` → `/`. Those
+  redirects live in `next.config.ts`.
+- The organiser dashboard on `events.ozoneentertainmentz.com` is untouched by this move.
+- Submit the sitemap in Google Search Console. Removed pages drop out over a few weeks; the 301s
+  pass their ranking on.
 
 ## Rolling back
 
 Remove the domain from `events-site`, add it back to `ozone-website`. Same two-step gap.
 
-## Known-bad data to fix before launch
+## Known-bad data — fix before launch
 
-Both are in the database, not this code, and both are visible on the live site:
+All in the database, not this code, and all visible on the live site:
 
-1. **RIMBA ticket sales are closed.** All three tiers have `sale_start` after `sale_end`, both in
-   the past, so the event page shows "Sales closed". Nothing can be sold until this is fixed.
-2. **RIMBA's date is 26 Aug 2026** in the database; the flyer says 12 Sept 2026. The organiser is
-   also recorded as "AGACIRO ENTERTAINMENT AWARDS 2026" rather than Unity Models Management, so the
-   "… Presents" line reads wrong.
+1. **RIMBA ticket sales are closed.** All three tiers have `sale_start` *after* `sale_end`, both in
+   the past, so the event page shows "Sales closed" and falls back to the phone numbers. Nothing
+   can be sold until this is fixed. Confirmed still true on the Render API.
+2. **RIMBA's date is 26 Aug 2026** in the database; the flyer says 12 Sept 2026, 6PM.
+3. **RIMBA's organiser** is recorded as "AGACIRO ENTERTAINMENT AWARDS 2026" rather than Unity
+   Models Management, so the "… Presents" line on the home page reads wrong.
+4. **The Agaciro voting campaign is `DRAFT`**, so `/voting` shows its empty state. Publishing it
+   fills the page in with its 33 categories and vote packages, no deploy needed.
 
-The Agaciro voting campaign is still `DRAFT`, so `/voting` will show its empty state until it is
-published.
+Root cause of 1: `apps/events/serializers.py:101` defaults `sale_end` to `event.start_date`, so the
+wrong date in 2 poisoned the sale windows.
