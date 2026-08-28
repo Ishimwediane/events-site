@@ -16,10 +16,22 @@ A production build of this site was run against that API before writing this. Al
 
 So there is no code change needed to go live — only Vercel configuration.
 
-## 1. Import the repo
+## Which Vercel project is which
 
-Vercel → **Add New → Project** → import `Ishimwediane/events-site`.
-Framework preset Next.js, root directory = repository root, build settings default.
+| Project | Serves | Do what |
+| --- | --- | --- |
+| `ozone-website` | **www.ozoneentertainmentz.com** + apex — the old corporate site (services, about, portfolio, NAF Model Empire) | take the domain **off** this one |
+| `events-site` | `events-site-phi.vercel.app` — this site | put the domain **on** this one |
+| `event` | `events.ozoneentertainmentz.com` — the organiser dashboard and ticket checkout (`../frontend`) | **do not touch**; breaking it breaks ticketing |
+
+Verified live: `www` currently returns the corporate site
+("Ozone Entertainment | Events, Fashion, Film and Artist Management"), while
+`events.` returns the platform ("OZONE EVENT | Elite Event & Ticket Management").
+
+## 1. The project already exists
+
+`events-site` is deployed at `https://events-site-phi.vercel.app`. It needs the environment
+variables below and a redeploy — see the note about the first deployment at the end of section 2.
 
 ## 2. Environment variables
 
@@ -35,6 +47,11 @@ Settings → Environment Variables, scope **Production**:
 
 `NEXT_PUBLIC_*` values are compiled in at build time, so changing one needs a **redeploy**, not a
 restart.
+
+**These are not optional.** Set them all, then redeploy. The first deployment went out with none of
+them set, which is why `/events`, `/voting` and `/gallery` returned 404 and the home page showed no
+events. The code no longer collapses that way (a blank value now falls back properly), but without
+`NEXT_PUBLIC_API_URL` the site still points at `localhost:8000` and will render empty.
 
 ## 3. CORS — nothing to do, but know why
 
