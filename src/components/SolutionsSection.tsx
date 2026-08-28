@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { Layout, Ticket, Scan, Vote } from "lucide-react";
+import { Layout, Ticket, Scan, Vote, Printer } from "lucide-react";
 import ScrollReveal from "./ScrollReveal";
 import MiniHeader from "./MiniHeader";
 import { solutions } from "@/config/site";
 
-const ICONS = { layout: Layout, ticket: Ticket, scan: Scan, vote: Vote } as const;
+const ICONS = { layout: Layout, ticket: Ticket, scan: Scan, vote: Vote, printer: Printer } as const;
 
 /**
- * The four event services, in place of the five service lines the site used to
- * advertise (photography, film, modelling, artist management).
+ * The event services as the /events page presents them — icon cards at
+ * aspect-[4/5]. The home page uses the navy-card treatment in
+ * ServicesSection instead; both layouts exist on the Ozone website.
  */
 export default function SolutionsSection({
   heading = "Event Management Solutions",
@@ -22,13 +23,13 @@ export default function SolutionsSection({
           <MiniHeader className="mb-16">{heading}</MiniHeader>
         </ScrollReveal>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
           {solutions.map((solution, i) => {
             const Icon = ICONS[solution.icon];
             return (
               <ScrollReveal key={solution.id} animation="scaleIn" delay={i * 0.1} className="h-full">
                 <Link
-                  href={`/contact?about=${solution.id}`}
+                  href={`/services#${solution.id}`}
                   id={solution.id}
                   className="group relative flex flex-col items-start justify-end p-6 bg-[var(--bg-primary)] rounded-3xl overflow-hidden transition-all duration-700 hover:shadow-2xl hover:shadow-[var(--orange-accent)]/10 hover:-translate-y-2 h-full border border-[var(--border-color)] hover:border-[var(--orange-accent)] aspect-square md:aspect-[4/5]"
                 >

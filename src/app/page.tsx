@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Hero from "@/components/Hero";
 import FeaturedEvent from "@/components/FeaturedEvent";
-import SolutionsSection from "@/components/SolutionsSection";
+import ServicesSection from "@/components/ServicesSection";
 import EventCard from "@/components/EventCard";
 import MiniHeader from "@/components/MiniHeader";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -62,7 +62,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <SolutionsSection heading="What We Do" />
+      <ServicesSection />
 
       {past.length > 0 && (
         <section className="py-20 bg-white">

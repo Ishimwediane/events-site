@@ -42,7 +42,7 @@ export default function Footer() {
               {solutions.map((s) => (
                 <li key={s.id}>
                   <Link
-                    href={`/contact?about=${s.id}`}
+                    href={`/services#${s.id}`}
                     className="text-gray-600 hover:text-[var(--orange-accent)] transition-colors duration-300 text-sm inline-flex items-center group"
                   >
                     <span className="w-0 group-hover:w-2 h-0.5 bg-[var(--orange-accent)] transition-all duration-300 mr-0 group-hover:mr-2" />

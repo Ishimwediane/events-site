@@ -60,6 +60,7 @@ the client is likely to reword — one file, no hunting through components.
 | ticket purchase | `POST /tickets/checkout/purchase/` — `{ticket_type_id, quantity, full_name, email}` |
 | `/voting` | `GET /voting/campaigns/?status=PUBLISHED` |
 | `/gallery` | no API — see below |
+| `/services` | no API — content lives in `src/config/site.ts` |
 | `/contact` | `POST /api/contact` (this app's own route, nodemailer) |
 
 Reads go through `src/lib/api.ts`, which returns empty results instead of throwing when the API is

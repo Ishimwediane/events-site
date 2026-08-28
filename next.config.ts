@@ -24,14 +24,16 @@ const nextConfig: NextConfig = {
       // The portfolio became the events-only gallery.
       { source: "/portfolio", destination: "/gallery", permanent: true },
 
-      // The service lines are gone; "What We Do" on the home page replaces them.
+      // /services still exists, with the event services. Only the old
+      // photography / film / modelling / artist-management pages redirect.
       { source: "/about", destination: "/", permanent: true },
-      { source: "/services", destination: "/", permanent: true },
       { source: "/services/naf-model-empire", destination: "/", permanent: true },
       { source: "/services/artist-management", destination: "/", permanent: true },
       { source: "/services/film-production", destination: "/", permanent: true },
       { source: "/services/photography", destination: "/", permanent: true },
-      { source: "/services/:path*", destination: "/", permanent: true },
+      // `:path+` not `:path*` — the star form matches zero segments too, which
+      // would swallow /services itself and redirect the real page away.
+      { source: "/services/:path+", destination: "/", permanent: true },
 
       // Old hand-built event pages now come from the API under /events.
       { source: "/events/agaciro-fashion-gala", destination: "/events", permanent: true },
