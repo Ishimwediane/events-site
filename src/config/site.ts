@@ -163,16 +163,18 @@ export const partners: Partner[] = [
  * The first is the client's own existing copy from the Ozone Entertainment
  * website, kept verbatim because it is about an event.
  *
- * The other two on that site were about film production and the modelling
- * programme — both service lines this site no longer carries — so they are
- * bracketed placeholders. They are deliberately NOT replaced with invented
- * quotes: a testimonial is a claim a named person made, and making those up
- * would put fake reviews on a live site. Ozone supplies the real ones.
+ * The names on the other two were supplied by Ozone; the wording is DRAFT
+ * written here, describing only things the platform genuinely does (MoMo
+ * payment, a QR ticket by email, scanning at the gate, phone voting). Both
+ * people should read and approve or reword their own quote before this goes
+ * live — they are attributed statements, not marketing copy.
  */
 export type Testimonial = {
   name: string;
   role: string;
   content: string;
+  /** Square photo. Falls back to the initial in a tinted circle when absent. */
+  avatar?: string;
   tint: "navy" | "orange";
   rotation: string;
 };
@@ -187,18 +189,20 @@ export const testimonials: Testimonial[] = [
     rotation: "-rotate-2",
   },
   {
-    name: "[CLIENT NAME]",
-    role: "[THEIR ROLE]",
+    name: "Ishimwe Diane",
+    role: "Guest, Rimba Fashion Show",
     content:
-      "[Replace with a real quote — someone who bought tickets, hosted with you, or attended. Two or three sentences in their own words.]",
+      "Booking was the easy part — I paid by MoMo and the ticket was in my inbox before I put my phone down. They scanned the code at the door and I was straight in, no queue, no arguing over a name list.",
+    avatar: "/images/testimonials/diane.jpg",
     tint: "orange",
     rotation: "rotate-0",
   },
   {
-    name: "[CLIENT NAME]",
-    role: "[THEIR ROLE]",
+    name: "Iradukunda Jean Michel",
+    role: "Guest, Agaciro Fashion Gala",
     content:
-      "[Replace with a real quote. If you only have one genuine testimonial, delete these two entries in src/config/site.ts — the section lays out fine with one or two.]",
+      "The night itself was beautifully run, but what stayed with me was how easy everything around it was. Voting for my category took seconds from my phone, and the results were up before we left.",
+    avatar: "/images/testimonials/michel.jpg",
     tint: "navy",
     rotation: "rotate-2",
   },

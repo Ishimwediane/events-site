@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Quote } from "lucide-react";
 import ScrollReveal from "./ScrollReveal";
 import { testimonials } from "@/config/site";
@@ -37,11 +38,21 @@ export default function TestimonialsSection() {
               >
                 <div className="flex items-center gap-3 mb-6">
                   <div
-                    className={`w-12 h-12 ${AVATAR_TINT[t.tint]} rounded-full flex items-center justify-center overflow-hidden`}
+                    className={`relative w-12 h-12 ${AVATAR_TINT[t.tint]} rounded-full flex items-center justify-center overflow-hidden shrink-0`}
                   >
-                    <span className="text-sm font-bold text-[var(--primary-blue)]">
-                      {t.name.replace(/[^A-Za-z]/g, "").slice(0, 1) || "—"}
-                    </span>
+                    {t.avatar ? (
+                      <Image
+                        src={t.avatar}
+                        alt={t.name}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-bold text-[var(--primary-blue)]">
+                        {t.name.replace(/[^A-Za-z]/g, "").slice(0, 1) || "—"}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-base text-[var(--primary-blue)]">{t.name}</h3>
