@@ -163,11 +163,13 @@ export const partners: Partner[] = [
  * The first is the client's own existing copy from the Ozone Entertainment
  * website, kept verbatim because it is about an event.
  *
- * The names on the other two were supplied by Ozone; the wording is DRAFT
- * written here, describing only things the platform genuinely does (MoMo
- * payment, a QR ticket by email, scanning at the gate, phone voting). Both
- * people should read and approve or reword their own quote before this goes
- * live — they are attributed statements, not marketing copy.
+ * The other two are Ozone's own real quotes, carried over verbatim from
+ * Ozone/ozone/src/components/Testimonies.tsx, with the portraits that shipped
+ * beside them. Nothing here is invented.
+ *
+ * Note: Diane's quote refers to a photoshoot, which is one of the service lines
+ * this site no longer advertises. It is her actual wording, so it is kept as-is
+ * rather than edited on her behalf — reword it only with her say-so.
  */
 export type Testimonial = {
   name: string;
@@ -190,18 +192,18 @@ export const testimonials: Testimonial[] = [
   },
   {
     name: "Ishimwe Diane",
-    role: "Guest, Rimba Fashion Show",
+    role: "Client",
     content:
-      "Booking was the easy part — I paid by MoMo and the ticket was in my inbox before I put my phone down. They scanned the code at the door and I was straight in, no queue, no arguing over a name list.",
+      "I had the pleasure of working with them on a photoshoot, and it was an amazing experience. They are professional, creative, and made the whole process enjoyable. I would definitely recommend their services to anyone!",
     avatar: "/images/testimonials/diane.jpg",
     tint: "orange",
     rotation: "rotate-0",
   },
   {
     name: "Iradukunda Jean Michel",
-    role: "Guest, Agaciro Fashion Gala",
+    role: "Client",
     content:
-      "The night itself was beautifully run, but what stayed with me was how easy everything around it was. Voting for my category took seconds from my phone, and the results were up before we left.",
+      "The service exceeded all my expectations. Professional, reliable, and truly outstanding results that transformed our business completely.",
     avatar: "/images/testimonials/michel.jpg",
     tint: "navy",
     rotation: "rotate-2",

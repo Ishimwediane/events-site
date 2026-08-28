@@ -43,22 +43,25 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  /**
+   * Proxy the platform's pages so they are served AT this domain — the address
+   * bar stays on ozoneentertainmentz.com instead of jumping to the events
+   * subdomain.
+   *
+   * This only works because the platform sets `assetPrefix` to its own origin
+   * (see ../frontend/next.config.ts). Without that, its HTML would ask this
+   * domain for /_next/* and collide with this site's own chunks, and the
+   * dashboard would load the wrong JavaScript.
+   */
+  async rewrites() {
+    return PLATFORM_PATHS.flatMap((path) => [
+      { source: path, destination: `${PLATFORM_URL}${path}` },
+      { source: `${path}/:path+`, destination: `${PLATFORM_URL}${path}/:path+` },
+    ]);
+  },
+
   async redirects() {
     return [
-      /**
-       * Hand-off to the platform. Temporary (307/308) on purpose: browsers cache
-       * permanent redirects aggressively, and if these paths are ever served
-       * from this site instead, a cached 301 would be very hard to undo.
-       */
-      ...PLATFORM_PATHS.flatMap((path) => [
-        { source: path, destination: `${PLATFORM_URL}${path}`, permanent: false },
-        {
-          source: `${path}/:path+`,
-          destination: `${PLATFORM_URL}${path}/:path+`,
-          permanent: false,
-        },
-      ]),
-
       /**
        * This site replaced the previous corporate site on the same domain, so
        * that site's URLs are redirected rather than left to 404. Permanent here,

@@ -42,6 +42,12 @@ Settings → Environment Variables, scope **Production**:
 | `NEXT_PUBLIC_API_URL` | `https://event-backend-tex3.onrender.com/api` |
 | `NEXT_PUBLIC_FEATURES` | `events,tickets,voting,gallery` |
 | `NEXT_PUBLIC_PLATFORM_URL` | `https://events.ozoneentertainmentz.com` |
+
+And on the **platform** (`event`) project, one new variable:
+
+| Variable | Value |
+| --- | --- |
+| `NEXT_PUBLIC_ASSET_PREFIX` | `https://events.ozoneentertainmentz.com` |
 | `EMAIL_USER` | `ozoneentertainments1@gmail.com` |
 | `EMAIL_PASS` | the Gmail app password |
 | `CONTACT_EMAIL` | `ozoneentertainments1@gmail.com` |
@@ -125,13 +131,22 @@ project first. There is a gap of a minute or two — do it at a quiet hour.
 ## 7. Login and the dashboard
 
 `/login`, `/register`, `/dashboard/*`, `/admin/*`, `/scan`, `/pending`, `/payment-complete`,
-`/payment-return`, `/apply` and `/company/*` on this domain **redirect** to the platform on
-`events.ozoneentertainmentz.com`, which is where those pages live (`../frontend`, the `event`
-Vercel project). The address bar switches to that host — that is expected.
+`/payment-return`, `/apply` and `/company/*` are **proxied** from the platform (`../frontend`, the
+`event` Vercel project) and served AT this domain. The address bar stays on
+ozoneentertainmentz.com — there is no redirect to the events subdomain.
 
-The redirects are temporary (307), not permanent, on purpose: browsers cache permanent redirects
-hard, and if these paths are ever served from this site instead, a cached 301 would be painful to
-undo.
+Three pieces have to line up, and all three are required:
+
+1. This site rewrites those paths to `NEXT_PUBLIC_PLATFORM_URL` (`next.config.ts`).
+2. The platform sets `NEXT_PUBLIC_ASSET_PREFIX` to its own origin, so its HTML references
+   `/_next/*` absolutely. Without this both apps ask this domain for `/_next/*`, their shared
+   runtime chunks have the same names and different contents, and the dashboard loads broken
+   JavaScript.
+3. `next/image` does **not** inherit `assetPrefix`, so the platform's own local images are still
+   requested from this origin. The eight files it uses are therefore mirrored into
+   `public/image/` here. **If the platform adds a new `/image/*` asset, copy it here too** or it
+   will 404 on the proxied pages. Cloudinary flyers are unaffected — they are absolute URLs and
+   this site's `remotePatterns` already allow that host.
 
 `/events`, `/voting`, `/contact` and `/services` are deliberately **not** forwarded. The platform
 has pages at all four, but this site owns them.
