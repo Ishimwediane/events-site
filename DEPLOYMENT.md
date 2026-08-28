@@ -41,6 +41,7 @@ Settings → Environment Variables, scope **Production**:
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | `https://event-backend-tex3.onrender.com/api` |
 | `NEXT_PUBLIC_FEATURES` | `events,tickets,voting,gallery` |
+| `NEXT_PUBLIC_PLATFORM_URL` | `https://events.ozoneentertainmentz.com` |
 | `EMAIL_USER` | `ozoneentertainments1@gmail.com` |
 | `EMAIL_PASS` | the Gmail app password |
 | `CONTACT_EMAIL` | `ozoneentertainments1@gmail.com` |
@@ -121,7 +122,28 @@ project first. There is a gap of a minute or two — do it at a quiet hour.
 4. **Do not delete the old project.** Keep it deployed on its `*.vercel.app` URL — that is the
    rollback.
 
-## 7. Afterwards
+## 7. Login and the dashboard
+
+`/login`, `/register`, `/dashboard/*`, `/admin/*`, `/scan`, `/pending`, `/payment-complete`,
+`/payment-return`, `/apply` and `/company/*` on this domain **redirect** to the platform on
+`events.ozoneentertainmentz.com`, which is where those pages live (`../frontend`, the `event`
+Vercel project). The address bar switches to that host — that is expected.
+
+The redirects are temporary (307), not permanent, on purpose: browsers cache permanent redirects
+hard, and if these paths are ever served from this site instead, a cached 301 would be painful to
+undo.
+
+`/events`, `/voting`, `/contact` and `/services` are deliberately **not** forwarded. The platform
+has pages at all four, but this site owns them.
+
+Verified end to end: `/login` here lands on the platform's login page, and that deployment is built
+against the same `event-backend-tex3.onrender.com` API (its auth endpoint answers correctly).
+
+Both apps cannot be served transparently under one host, by the way — neither sets a `basePath`, so
+both serve assets from `/_next/*` and their shared runtime chunks would collide. Making the URL stay
+on `www` would mean setting `assetPrefix` or `basePath` on the live platform app and redeploying it.
+
+## 8. Afterwards
 
 - Check `/portfolio` → `/gallery`, and `/about` and `/services/naf-model-empire` → `/`. Those
   redirects live in `next.config.ts`.

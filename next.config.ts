@@ -1,5 +1,37 @@
 import type { NextConfig } from "next";
 
+/**
+ * The organiser dashboard, ticket checkout and gate scanner are a separate
+ * Next.js app (../frontend), deployed as the `event` Vercel project on
+ * events.ozoneentertainmentz.com. This site hands those paths over to it.
+ */
+const PLATFORM_URL = (
+  process.env.NEXT_PUBLIC_PLATFORM_URL || "https://events.ozoneentertainmentz.com"
+).replace(/\/$/, "");
+
+/**
+ * Paths this site forwards to the platform.
+ *
+ * Deliberately NOT listed: /events, /voting, /contact and /services. The
+ * platform has pages at all four, but so does this site, and this site owns
+ * them — forwarding those would send visitors away from the public site.
+ * /item-details-demo is also left out; it is a demo page.
+ */
+const PLATFORM_PATHS = [
+  "/login",
+  "/register",
+  "/dashboard",
+  "/admin",
+  "/scan",
+  "/pending",
+  "/payment-complete",
+  "/payment-return",
+  // The organiser sign-up flow. Nothing on the public site links to it, but the
+  // URLs keep working for anyone who has them.
+  "/apply",
+  "/company",
+];
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -11,17 +43,30 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  /**
-   * This site replaces the previous corporate site on the same domain, so the
-   * URLs that site had are redirected rather than left to 404 — old links,
-   * shared posts and search results keep working.
-   *
-   * Kept in next.config.ts instead of vercel.json so they survive a move to
-   * any other host.
-   */
   async redirects() {
     return [
-      // The portfolio became the events-only gallery.
+      /**
+       * Hand-off to the platform. Temporary (307/308) on purpose: browsers cache
+       * permanent redirects aggressively, and if these paths are ever served
+       * from this site instead, a cached 301 would be very hard to undo.
+       */
+      ...PLATFORM_PATHS.flatMap((path) => [
+        { source: path, destination: `${PLATFORM_URL}${path}`, permanent: false },
+        {
+          source: `${path}/:path+`,
+          destination: `${PLATFORM_URL}${path}/:path+`,
+          permanent: false,
+        },
+      ]),
+
+      /**
+       * This site replaced the previous corporate site on the same domain, so
+       * that site's URLs are redirected rather than left to 404. Permanent here,
+       * because the content really did move.
+       *
+       * Kept in next.config.ts instead of vercel.json so they survive a move to
+       * any other host.
+       */
       { source: "/portfolio", destination: "/gallery", permanent: true },
 
       // /services still exists, with the event services. Only the old
