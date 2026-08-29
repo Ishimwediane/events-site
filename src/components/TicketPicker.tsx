@@ -26,7 +26,14 @@ const NOTE: Record<ReturnType<typeof saleState>, string> = {
  * Tier list in the page, then the same two steps the organiser platform uses:
  * a checkout modal for who the tickets are for, then the payment modal.
  */
-export default function TicketPicker({ tiers }: { tiers: TicketType[] }) {
+export default function TicketPicker({
+  tiers,
+  variant = "rail",
+}: {
+  tiers: TicketType[];
+  /** "rail" is the boxed Get Tickets panel; "list" is the Ticket Types card. */
+  variant?: "rail" | "list";
+}) {
   const now = useMemo(() => new Date(), []);
   const states = useMemo(() => new Map(tiers.map((t) => [t.id, saleState(t, now)])), [tiers, now]);
 
@@ -48,6 +55,7 @@ export default function TicketPicker({ tiers }: { tiers: TicketType[] }) {
   }
 
   if (tiers.length === 0) {
+    if (variant === "list") return null;
     return (
       <div className="bg-white rounded-2xl border border-[var(--border-color)] p-8 text-center">
         <Ticket className="w-8 h-8 text-gray-300 mx-auto mb-3" />
@@ -61,13 +69,21 @@ export default function TicketPicker({ tiers }: { tiers: TicketType[] }) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-[var(--border-color)] p-6 md:p-8">
-        <h3 className="text-xs font-bold text-[var(--primary-blue)] uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-          <Ticket className="w-4 h-4 text-[var(--orange-accent)]" />
-          Get Tickets
-        </h3>
+      <div
+        className={
+          variant === "rail"
+            ? "bg-white rounded-2xl border border-[var(--border-color)] p-6 md:p-8"
+            : ""
+        }
+      >
+        {variant === "rail" && (
+          <h3 className="text-xs font-bold text-[var(--primary-blue)] uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
+            <Ticket className="w-4 h-4 text-[var(--orange-accent)]" />
+            Get Tickets
+          </h3>
+        )}
 
-        <div className="space-y-2">
+        <div className={variant === "rail" ? "space-y-2" : "space-y-3"}>
           {tiers.map((tier) => {
             const state = states.get(tier.id)!;
             const disabled = state !== "open";
@@ -88,19 +104,28 @@ export default function TicketPicker({ tiers }: { tiers: TicketType[] }) {
                     {tier.name}
                   </p>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] mt-0.5">
-                    {NOTE[state]}
-                    {state === "open" && ` · ${tier.remaining} left`}
+                    {variant === "list" && state === "open"
+                      ? "Click to purchase"
+                      : NOTE[state]}
+                    {variant === "rail" && state === "open" && ` · ${tier.remaining} left`}
                   </p>
                 </div>
-                <p className="text-sm font-bold text-[var(--primary-blue)]">
-                  {formatPrice(tier.price)}
-                </p>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-[var(--primary-blue)]">
+                    {formatPrice(tier.price)}
+                  </p>
+                  {variant === "list" && state === "open" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--orange-accent)] mt-0.5">
+                      Buy Now <ArrowRight size={10} />
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
 
-        {!anyOpen && (
+        {!anyOpen && variant === "rail" && (
           <div className="mt-4 flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-gray-400" />
             <span>
@@ -110,7 +135,7 @@ export default function TicketPicker({ tiers }: { tiers: TicketType[] }) {
           </div>
         )}
 
-        {anyOpen && (
+        {anyOpen && variant === "rail" && (
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
             <span className="text-[11px] text-gray-400">Secure payment by MoMo or card</span>

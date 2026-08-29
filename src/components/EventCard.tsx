@@ -1,96 +1,73 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import type { Event } from "@/lib/api";
-import { lowestPrice } from "@/lib/api";
 import { imageUrl, FLYER_FALLBACK } from "@/lib/images";
-import { formatDate, formatTime, formatPrice, plainText, truncate } from "@/lib/format";
+import { formatDate, formatTimeRange, plainText, truncate } from "@/lib/format";
 
 /**
- * Past-event card, matching the rounded-[2rem] cards in the site's event
- * history strip. `past` drops the price and the call to action.
+ * The compact event card, matching the organiser platform's grid: flyer with a
+ * category pill, title, the essentials, and a full-width action. Rendered in
+ * this site's palette and type.
  */
 export default function EventCard({ event, past = false }: { event: Event; past?: boolean }) {
-  const price = lowestPrice(event);
-  const summary = truncate(plainText(event.description ?? ""), 160);
-
-  // The design splits the title so the first word sits above an orange remainder.
-  const [firstWord, ...rest] = event.title.split(" ");
+  const summary = truncate(plainText(event.description ?? ""), 120);
 
   return (
-    <div className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-gray-100 h-full flex flex-col">
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
-        <Image
-          src={imageUrl(event.flyer, FLYER_FALLBACK)}
-          alt={event.title}
-          fill
-          sizes="(max-width: 768px) 100vw, 33vw"
-          className="object-cover"
-        />
-        {event.category_name && (
-          <span className="absolute top-4 left-4 bg-white/95 text-[var(--primary-blue)] text-[9px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 rounded-full">
-            {event.category_name}
-          </span>
-        )}
-      </div>
-
-      <div className="p-8 flex flex-col grow">
-        <h3 className="text-2xl font-bold mb-4 uppercase tracking-tight text-gray-900 leading-none">
-          {firstWord}
-          {rest.length > 0 && (
-            <>
-              <br />
-              <span className="text-[var(--orange-accent)]">{rest.join(" ")}</span>
-            </>
-          )}
-        </h3>
-
-        {summary && <p className="text-gray-500 text-sm mb-8 leading-relaxed grow">{summary}</p>}
-
-        <div className="border-t border-gray-100 pt-6 mt-auto">
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold">
-              <Calendar size={14} />
-              {formatDate(event.start_date)}
-            </div>
-            <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold">
-              <Clock size={14} />
-              {formatTime(event.start_date)}
-            </div>
-            {event.location && (
-              <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold">
-                <MapPin size={14} />
-                {event.location}
+    <Link href={`/events/${event.slug}`} className="block h-full group">
+      <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-500 h-full flex flex-col border border-gray-100">
+        <div className="relative h-40 w-full overflow-hidden p-2 pb-0">
+          <div className="relative h-full w-full rounded-lg overflow-hidden bg-gray-100">
+            <Image
+              src={imageUrl(event.flyer, FLYER_FALLBACK)}
+              alt={event.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+            {event.category_name && (
+              <div className="absolute top-2 right-2 z-20">
+                <span className="px-2 py-0.5 bg-white/95 backdrop-blur-sm rounded-lg text-[10px] font-bold uppercase tracking-widest text-[var(--orange-accent)] border border-[var(--orange-accent)]/20">
+                  {event.category_name}
+                </span>
               </div>
             )}
           </div>
+        </div>
 
-          {!past && (
-            <>
-              {price !== null && (
-                <p className="text-[var(--primary-blue)] text-sm font-semibold mb-3">
-                  From {formatPrice(price)}
-                </p>
-              )}
-              <Link
-                href={`/events/${event.slug}`}
-                className="block w-full bg-[var(--orange-accent)] hover:bg-[var(--orange-hover)] text-white text-center py-3 rounded-lg transition-all duration-300 text-sm font-semibold"
-              >
-                View Details
-              </Link>
-            </>
-          )}
+        <div className="p-4 flex flex-col flex-1">
+          <div className="flex-1">
+            <h3 className="text-base font-bold mb-1.5 leading-tight text-[var(--primary-blue)] group-hover:text-[var(--orange-accent)] transition-colors line-clamp-1">
+              {event.title}
+            </h3>
 
-          {past && (
-            <Link
-              href={`/events/${event.slug}`}
-              className="inline-flex items-center gap-2 text-[var(--orange-accent)] font-semibold text-xs tracking-widest uppercase"
-            >
+            {summary && (
+              <p className="text-gray-400 text-xs font-medium leading-relaxed mb-3 line-clamp-2">
+                {summary}
+              </p>
+            )}
+
+            <div className="h-px w-full bg-gray-50 mb-3" />
+
+            <div className="space-y-1.5 mb-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                <Calendar className="w-3 h-3 text-gray-300" />
+                {formatDate(event.start_date)}
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                <Clock className="w-3 h-3 text-gray-300" />
+                {formatTimeRange(event.start_date, event.end_date)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto">
+            <span className="block w-full py-2.5 rounded-lg bg-[var(--orange-accent)] group-hover:bg-[var(--orange-hover)] transition-all text-white font-bold text-[11px] uppercase tracking-widest shadow-sm text-center">
               View Details
-            </Link>
-          )}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

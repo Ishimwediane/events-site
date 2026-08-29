@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft, CalendarDays, Clock, MapPin, Smartphone, Phone, Building2, Ticket,
-} from "lucide-react";
+import { ArrowLeft, Clock, MapPin, Building2, CalendarDays, Ticket, Phone } from "lucide-react";
 import TicketPicker from "@/components/TicketPicker";
-import ScrollReveal from "@/components/ScrollReveal";
+import ShareRow from "@/components/ShareRow";
 import { getEvent, lowestPrice } from "@/lib/api";
 import { imageUrl, FLYER_FALLBACK } from "@/lib/images";
-import { formatLongDate, formatTimeRange, formatPrice, plainText, truncate } from "@/lib/format";
+import {
+  formatLongDate, formatTimeRange, formatPrice, plainText, truncate,
+} from "@/lib/format";
 import { brand, isEnabled } from "@/config/site";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -45,7 +45,6 @@ export default async function EventDetailPage({ params }: Props) {
   const price = lowestPrice(event);
   const capacityLeft = event.tickets.reduce((n, t) => n + t.remaining, 0);
 
-  // Structured data so the event shows up properly when shared or searched.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -66,216 +65,255 @@ export default async function EventDetailPage({ params }: Props) {
         addressCountry: "RW",
       },
     },
-    organizer: {
-      "@type": "Organization",
-      name: event.organizer_name ?? brand.name,
-    },
+    organizer: { "@type": "Organization", name: event.organizer_name ?? brand.name },
     offers: event.tickets.map((t) => ({
       "@type": "Offer",
       name: t.name,
       price: t.price,
       priceCurrency: "RWF",
-      availability:
-        t.remaining > 0 ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
+      availability: t.remaining > 0 ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
     })),
   };
 
   return (
-    <>
+    <div className="bg-[#f6f7f9] min-h-screen">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <section className="relative h-[50vh] md:h-[60vh] flex items-end overflow-hidden bg-[var(--primary-blue)]">
+      {/* Flyer banner */}
+      <div className="relative w-full h-64 md:h-[400px] overflow-hidden bg-[var(--primary-blue)]">
         <Image
           src={imageUrl(event.flyer, FLYER_FALLBACK)}
-          alt=""
+          alt={event.title}
           fill
           sizes="100vw"
-          className="object-cover opacity-40"
+          className="object-cover opacity-60"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--primary-blue)] via-[var(--primary-blue)]/60 to-[var(--primary-blue)]/30" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/90 to-transparent" />
 
-        <div className="container-custom relative z-10 pb-12">
+        <div className="absolute top-6 left-6 z-20">
           <Link
             href="/events"
-            className="inline-flex items-center gap-2 text-white/80 hover:text-white text-xs font-semibold tracking-[0.2em] uppercase mb-6 transition-colors"
+            className="flex items-center gap-1.5 text-white/90 hover:text-white text-xs font-bold bg-black/40 backdrop-blur-md px-4 py-2 rounded-full transition-all border border-white/10"
           >
-            <ArrowLeft size={16} /> All Events
+            <ArrowLeft className="w-4 h-4" /> Back
           </Link>
-
-          {event.category_name && (
-            <div className="eyebrow-ruled justify-start mb-4">
-              <span className="rule" />
-              <span className="label">{event.category_name}</span>
-            </div>
-          )}
-
-          <h1 className="text-3xl md:text-5xl font-normal tracking-tight leading-tight text-white uppercase max-w-3xl">
-            {event.title}
-          </h1>
         </div>
-      </section>
 
-      <section className="py-16 md:py-20 bg-white">
-        <div className="container-custom">
-          <div className="grid lg:grid-cols-[1fr_380px] gap-12 items-start">
-            <div>
-              <ScrollReveal animation="fadeInUp">
-                <div className="grid sm:grid-cols-2 gap-6 mb-12">
-                  <Fact icon={CalendarDays} label="Date">
-                    {formatLongDate(event.start_date)}
-                  </Fact>
-                  <Fact icon={Clock} label="Time">
-                    {formatTimeRange(event.start_date, event.end_date)}
-                  </Fact>
-                  {event.location && (
-                    <Fact icon={MapPin} label="Venue">
-                      {event.location}
-                    </Fact>
-                  )}
-                  <Fact icon={Smartphone} label="MoMo Pay (MTN)" note={brand.legalName}>
-                    {brand.momoCode}
-                  </Fact>
-                </div>
+        {event.category_name && (
+          <div className="absolute top-6 right-6 z-20">
+            <span className="px-4 py-1.5 rounded-lg bg-[var(--orange-accent)] text-white text-xs font-bold uppercase tracking-wider shadow-lg">
+              {event.category_name}
+            </span>
+          </div>
+        )}
+      </div>
 
-                {event.description ? (
-                  <div className="mb-12">
-                    <h2 className="text-2xl md:text-3xl font-semibold text-[var(--primary-blue)] mb-5">
-                      About This Event
-                    </h2>
-                    <div
-                      className="text-sm md:text-base text-gray-600 leading-relaxed space-y-4 [&_strong]:text-[var(--primary-blue)] [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1"
-                      dangerouslySetInnerHTML={{ __html: event.description }}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic mb-12">
-                    No write-up has been added for this event yet.
-                  </p>
+      {/* Ticket-stub card, lifted over the banner */}
+      <div className="relative z-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 md:-mt-32 pb-16">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 border border-gray-100">
+          <div className="flex flex-col lg:flex-row relative">
+            <div className="flex-1 p-6 lg:p-8">
+              <h1 className="text-xl md:text-2xl font-bold text-[var(--primary-blue)] mb-4 leading-tight">
+                {event.title}
+              </h1>
+
+              <div className="space-y-4">
+                <Fact icon={Clock} label="Date and Time">
+                  <span className="flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-0.5">
+                    <span>{formatLongDate(event.start_date)}</span>
+                    <span>{formatTimeRange(event.start_date, event.end_date)}</span>
+                  </span>
+                </Fact>
+
+                {event.location && (
+                  <Fact icon={MapPin} label="Address" accent>
+                    {event.location}
+                  </Fact>
                 )}
+              </div>
 
-                {event.tickets.length > 0 && (
-                  <div className="mb-12">
-                    <h2 className="text-2xl md:text-3xl font-semibold text-[var(--primary-blue)] mb-5">
-                      Ticket Types
-                    </h2>
-                    <div className="space-y-3">
-                      {event.tickets.map((tier) => (
-                        <div
-                          key={tier.id}
-                          className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-5 py-4"
-                        >
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--primary-blue)]">
-                              {tier.name}
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] mt-0.5">
-                              {tier.remaining > 0
-                                ? `${tier.remaining} of ${tier.quantity} left`
-                                : "Sold out"}
-                            </p>
-                          </div>
-                          <p className="text-sm font-bold text-[var(--primary-blue)] whitespace-nowrap">
-                            {formatPrice(tier.price)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="border-t border-gray-100 pt-8">
-                  <div className="flex items-start gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-[var(--orange-accent)]/10 flex items-center justify-center shrink-0">
-                      <Building2 className="w-5 h-5 text-[var(--orange-accent)]" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-                        Organiser
-                      </p>
-                      <p className="text-lg font-semibold text-[var(--primary-blue)] leading-tight">
-                        {event.organizer_name ?? brand.name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-2">
-                    <a
-                      href={`tel:${brand.phone.replace(/\s/g, "")}`}
-                      className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold hover:text-[var(--orange-accent)] transition-colors"
-                    >
-                      <Phone className="w-4 h-4 text-[var(--orange-accent)]" />
-                      {brand.phone}
-                    </a>
-                    <a
-                      href={`tel:${brand.phoneAlt.replace(/\s/g, "")}`}
-                      className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold hover:text-[var(--orange-accent)] transition-colors"
-                    >
-                      <Phone className="w-4 h-4 text-[var(--orange-accent)]" />
-                      {brand.phoneAlt}
-                    </a>
-                  </div>
-                  <p className="text-gray-500 text-xs">
-                    Ticket pick-up points:{" "}
-                    <span className="text-[var(--primary-blue)] font-medium">
-                      {brand.pickupPoints}
-                    </span>
-                  </p>
-                </div>
-              </ScrollReveal>
+              <ShareRow title={event.title} />
             </div>
 
-            <aside className="lg:sticky lg:top-28 space-y-6">
+            {/* The stub perforation */}
+            <div className="hidden lg:block absolute left-1/2 top-8 bottom-8 -translate-x-1/2 border-l border-dashed border-gray-100 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-50 border-4 border-white shadow-inner" />
+            </div>
+
+            <div className="w-full lg:w-[340px] p-6 lg:p-8 flex flex-col justify-center">
               {isEnabled("tickets") ? (
                 <TicketPicker tiers={event.tickets} />
               ) : (
-                <div className="bg-white rounded-2xl border border-[var(--border-color)] p-8 text-center">
-                  <Ticket className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                <div className="text-center">
+                  <Ticket className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">
                     Call {brand.phone} to reserve for this event.
                   </p>
                 </div>
               )}
-
-              <div className="bg-white rounded-2xl border border-[var(--border-color)] p-6 space-y-4">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                  Summary
-                </h3>
-                <Row label="Lowest price">
-                  {price !== null ? formatPrice(price) : "—"}
-                </Row>
-                <Row label="Ticket tiers">{event.tickets.length}</Row>
-                <Row label="Capacity left">{capacityLeft}</Row>
-              </div>
-            </aside>
+            </div>
           </div>
         </div>
-      </section>
-    </>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {event.description ? (
+              <Card>
+                <h2 className="text-base font-bold text-[var(--primary-blue)] mb-4">
+                  Event Details
+                </h2>
+                <div
+                  className="text-sm text-gray-600 leading-relaxed space-y-3 [&_strong]:text-[var(--primary-blue)] [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1"
+                  dangerouslySetInnerHTML={{ __html: event.description }}
+                />
+              </Card>
+            ) : (
+              <Card>
+                <h2 className="text-base font-bold text-[var(--primary-blue)] mb-2">
+                  Event Details
+                </h2>
+                <p className="text-sm text-gray-400 italic">
+                  No write-up has been added for this event yet.
+                </p>
+              </Card>
+            )}
+
+            {event.tickets.length > 0 && isEnabled("tickets") && (
+              <Card>
+                <h2 className="text-base font-bold text-[var(--primary-blue)] mb-4">
+                  Ticket Types
+                </h2>
+                <TicketPicker tiers={event.tickets} variant="list" />
+              </Card>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <Card padding="p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-50">
+                  <Building2 className="w-5 h-5 text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                    Organizer
+                  </p>
+                  <p className="text-base font-bold text-[var(--primary-blue)] leading-tight">
+                    {event.organizer_name ?? brand.name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Meta label="Phone">
+                  <a
+                    href={`tel:${brand.phone.replace(/\s/g, "")}`}
+                    className="text-sm font-bold text-[var(--orange-accent)] inline-flex items-center gap-1.5"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    {brand.phone}
+                  </a>
+                </Meta>
+                <Meta label="Email">
+                  <a
+                    href={`mailto:${brand.email}`}
+                    className="text-sm font-bold text-[var(--orange-accent)] break-all"
+                  >
+                    {brand.email}
+                  </a>
+                </Meta>
+              </div>
+            </Card>
+
+            <Card padding="p-6">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">
+                Summary
+              </h3>
+              <div className="space-y-4">
+                <Meta label="Starts" icon={CalendarDays}>
+                  <span className="text-sm font-bold text-[var(--primary-blue)]">
+                    {formatLongDate(event.start_date)}
+                  </span>
+                  <span className="block text-xs text-gray-400">
+                    {formatTimeRange(event.start_date, event.end_date)}
+                  </span>
+                </Meta>
+                {event.location && (
+                  <Meta label="Venue" icon={MapPin}>
+                    <span className="text-sm font-bold text-[var(--orange-accent)]">
+                      {event.location}
+                    </span>
+                  </Meta>
+                )}
+                <div className="pt-3 border-t border-gray-100 space-y-2">
+                  <Row label="Lowest price">{price !== null ? formatPrice(price) : "—"}</Row>
+                  <Row label="Ticket tiers">{event.tickets.length}</Row>
+                  <Row label="Capacity left">{capacityLeft}</Row>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({
+  children, padding = "p-6 md:p-8",
+}: {
+  children: React.ReactNode; padding?: string;
+}) {
+  return (
+    <div className={`bg-white rounded-2xl border border-gray-50 shadow-sm ${padding}`}>
+      {children}
+    </div>
   );
 }
 
 function Fact({
-  icon: Icon,
-  label,
-  note,
-  children,
+  icon: Icon, label, accent = false, children,
 }: {
-  icon: typeof CalendarDays;
-  label: string;
-  note?: string;
-  children: React.ReactNode;
+  icon: typeof Clock; label: string; accent?: boolean; children: React.ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="w-5 h-5 text-[var(--orange-accent)] shrink-0 mt-0.5" />
+      <div className="w-8 h-8 rounded-full bg-[var(--orange-accent)]/10 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="w-4 h-4 text-[var(--orange-accent)]" />
+      </div>
       <div>
-        <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-medium">{label}</p>
-        <p className="text-[var(--primary-blue)] text-sm font-semibold">{children}</p>
-        {note && <p className="text-gray-500 text-xs">{note}</p>}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-0.5">
+          {label}
+        </p>
+        <div
+          className={`text-sm font-bold ${
+            accent ? "text-[var(--orange-accent)]" : "text-gray-800"
+          }`}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Meta({
+  label, icon: Icon, children,
+}: {
+  label: string; icon?: typeof Clock; children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      {Icon && <Icon className="w-4 h-4 text-gray-300 shrink-0 mt-0.5" />}
+      <div className="min-w-0">
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">
+          {label}
+        </p>
+        {children}
       </div>
     </div>
   );
