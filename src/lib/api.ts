@@ -187,6 +187,111 @@ export type PurchaseResult =
   | { ok: true; data: unknown }
   | { ok: false; error: string };
 
+/* ── Payments ────────────────────────────────────────────────
+ *
+ * Tickets are paid for before they exist. `/payments/initiate/` queues a
+ * charge and returns a reference; the backend only creates and emails the
+ * tickets once that transaction reaches SUCCESS. Poll `/payments/status/`
+ * until it settles.
+ *
+ * Do NOT use `purchaseTickets` above for real sales — that endpoint mints
+ * tickets with no payment at all.
+ */
+
+export type PaymentMethod = "MOMO" | "CARD";
+export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
+
+/** The gateway rejects anything under this. */
+export const MIN_PAYMENT = 100;
+
+export type InitiatePaymentInput = {
+  amount: number;
+  /** Full international form, e.g. +2507…. Required for MoMo. */
+  phone_number?: string;
+  email: string;
+  payment_method: PaymentMethod;
+  /** The TicketType id being bought. */
+  target_id: string;
+  quantity: number;
+  full_name: string;
+  /** Where the card gateway sends the buyer back to. */
+  card_redirect_url?: string;
+};
+
+export type InitiateResult =
+  | { ok: true; txnRef: string }
+  | { ok: false; error: string };
+
+/** Pulls the first useful message out of a DRF error body. */
+function firstError(data: unknown, fallback: string): string {
+  if (!data || typeof data !== "object") return fallback;
+  const obj = data as Record<string, unknown>;
+  for (const key of ["error", "detail", "phone_number", "email", "amount", "target_id"]) {
+    const v = obj[key];
+    if (typeof v === "string") return v;
+    if (Array.isArray(v) && typeof v[0] === "string") return v[0];
+  }
+  return fallback;
+}
+
+export async function initiatePayment(input: InitiatePaymentInput): Promise<InitiateResult> {
+  try {
+    const res = await fetch(`${API_URL}/payments/initiate/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        amount: input.amount,
+        phone_number: input.payment_method === "MOMO" ? input.phone_number : undefined,
+        email: input.email,
+        payment_method: input.payment_method,
+        service_type: "TICKET",
+        target_id: input.target_id,
+        metadata: {
+          quantity: input.quantity,
+          full_name: input.full_name,
+          card_redirect_url: input.card_redirect_url,
+        },
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, error: firstError(data, `Payment failed (${res.status}).`) };
+
+    const txnRef = (data as { txn_ref?: string })?.txn_ref;
+    if (!txnRef) return { ok: false, error: "The payment service did not return a reference." };
+
+    return { ok: true, txnRef };
+  } catch {
+    return { ok: false, error: "Could not reach the payment service. Please try again." };
+  }
+}
+
+export type StatusResult = {
+  status: PaymentStatus;
+  gatewayMessage?: string | null;
+  /** Card payments come back with somewhere to send the buyer. */
+  redirectUrl?: string | null;
+};
+
+export async function getPaymentStatus(txnRef: string): Promise<StatusResult | null> {
+  try {
+    const res = await fetch(`${API_URL}/payments/status/${encodeURIComponent(txnRef)}/`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return {
+      status: d.status as PaymentStatus,
+      gatewayMessage: d.gateway_message ?? null,
+      redirectUrl: d.redirect_url ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Buys tickets. Runs in the browser, so it uses no caching and surfaces the
  * backend's own validation message ("Ticket sale is not active.", "Not enough

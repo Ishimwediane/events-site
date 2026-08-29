@@ -24,7 +24,8 @@ const PLATFORM_PATHS = [
   "/admin",
   "/scan",
   "/pending",
-  "/payment-complete",
+  // NOT /payment-complete — this site owns that page now, because it is where
+  // the card gateway returns a buyer after a purchase made here.
   "/payment-return",
   // The organiser sign-up flow. Nothing on the public site links to it, but the
   // URLs keep working for anyone who has them.
