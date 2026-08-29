@@ -25,8 +25,9 @@ export default async function EventsPage() {
     <>
       <PageHero
         eyebrow={upcoming[0] ? "Next Up" : "Premium Events"}
-        title="Professional Management. Unforgettable Experiences."
+        title="Unforgettable Experiences"
         image="/images/hero-events.jpg"
+        compact
       />
 
       <section className="py-20 bg-white">

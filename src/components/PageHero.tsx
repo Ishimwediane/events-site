@@ -12,6 +12,7 @@ export default function PageHero({
   intro,
   image,
   height = "h-[60vh] md:h-[70vh]",
+  compact = false,
   children,
 }: {
   eyebrow: string;
@@ -19,6 +20,8 @@ export default function PageHero({
   intro?: string;
   image: string;
   height?: string;
+  /** Smaller type, for titles that would otherwise wrap past two lines. */
+  compact?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -39,7 +42,13 @@ export default function PageHero({
               <span className="rule" />
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight leading-tight text-white/95 uppercase mb-6">
+            <h1
+              className={`font-normal tracking-tight leading-tight text-white/95 uppercase mb-6 text-balance ${
+                compact
+                  ? "text-3xl md:text-4xl lg:text-5xl"
+                  : "text-4xl md:text-5xl lg:text-6xl"
+              }`}
+            >
               {title}
             </h1>
 
