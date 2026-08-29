@@ -204,6 +204,17 @@ export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
 /** The gateway rejects anything under this. */
 export const MIN_PAYMENT = 100;
 
+/** The networks the gateway accepts, as offered by the organiser platform. */
+export const COUNTRY_CODES = [
+  { code: "+250", flag: "\u{1F1F7}\u{1F1FC}", name: "Rwanda" },
+  { code: "+256", flag: "\u{1F1FA}\u{1F1EC}", name: "Uganda" },
+  { code: "+255", flag: "\u{1F1F9}\u{1F1FF}", name: "Tanzania" },
+  { code: "+254", flag: "\u{1F1F0}\u{1F1EA}", name: "Kenya" },
+] as const;
+
+/** sessionStorage key holding the reference across a card redirect. */
+export const PENDING_REF_KEY = "lmb_pending_ref";
+
 export type InitiatePaymentInput = {
   amount: number;
   /** Full international form, e.g. +2507…. Required for MoMo. */
@@ -219,14 +230,26 @@ export type InitiatePaymentInput = {
 };
 
 export type InitiateResult =
-  | { ok: true; txnRef: string }
-  | { ok: false; error: string };
+  | {
+      ok: true;
+      txnRef: string;
+      /** "QUEUED" once the gateway has accepted the request. */
+      gatewayStatus?: string | null;
+      /** MoMo only: "fail" means the USSD prompt could not be delivered. */
+      lmbStatus?: string | null;
+      lmbMessage?: string | null;
+      /** Card only: send the buyer here. */
+      redirectUrl?: string | null;
+    }
+  /** The backend sometimes returns a reference even on failure — keep it, it
+   *  is what a buyer quotes when the money left but the tickets did not. */
+  | { ok: false; error: string; txnRef?: string | null };
 
 /** Pulls the first useful message out of a DRF error body. */
 function firstError(data: unknown, fallback: string): string {
   if (!data || typeof data !== "object") return fallback;
   const obj = data as Record<string, unknown>;
-  for (const key of ["error", "detail", "phone_number", "email", "amount", "target_id"]) {
+  for (const key of ["details", "error", "detail", "phone_number", "email", "amount", "target_id"]) {
     const v = obj[key];
     if (typeof v === "string") return v;
     if (Array.isArray(v) && typeof v[0] === "string") return v[0];
@@ -256,12 +279,27 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Init
     });
 
     const data = await res.json().catch(() => null);
-    if (!res.ok) return { ok: false, error: firstError(data, `Payment failed (${res.status}).`) };
+    const d = (data ?? {}) as Record<string, unknown>;
 
-    const txnRef = (data as { txn_ref?: string })?.txn_ref;
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: firstError(data, `Payment failed (${res.status}).`),
+        txnRef: typeof d.txn_ref === "string" ? d.txn_ref : null,
+      };
+    }
+
+    const txnRef = typeof d.txn_ref === "string" ? d.txn_ref : null;
     if (!txnRef) return { ok: false, error: "The payment service did not return a reference." };
 
-    return { ok: true, txnRef };
+    return {
+      ok: true,
+      txnRef,
+      gatewayStatus: (d.gateway_status as string) ?? null,
+      lmbStatus: (d.lmb_status as string) ?? null,
+      lmbMessage: (d.lmb_message as string) ?? null,
+      redirectUrl: (d.redirect_url as string) ?? null,
+    };
   } catch {
     return { ok: false, error: "Could not reach the payment service. Please try again." };
   }
