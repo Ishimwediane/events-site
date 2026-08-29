@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X, Smartphone, CreditCard, Loader2, CheckCircle2, AlertCircle,
 } from "lucide-react";
@@ -326,7 +327,14 @@ export default function PaymentModal({
   );
 }
 
-/** The modal frame both steps share. */
+/**
+ * The modal frame both steps share.
+ *
+ * Rendered through a portal on purpose. The event page wraps its content in a
+ * `relative z-20` container, which opens a stacking context — a modal rendered
+ * inside it can never rise above the fixed navbar (z-50), however high its own
+ * z-index. Portalling to <body> takes it out of that context entirely.
+ */
 export function Shell({
   title,
   subtitle,
@@ -338,9 +346,32 @@ export function Shell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-[var(--primary-blue)]/80 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl border border-[var(--border-color)] w-full max-w-sm shadow-2xl relative max-h-[90vh] flex flex-col">
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Escape closes, as it should for any dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-100 flex items-center justify-center bg-[var(--primary-blue)]/80 backdrop-blur-sm p-4 sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl border border-[var(--border-color)] w-full max-w-sm shadow-2xl relative max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden"
+      >
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-sm font-semibold text-[var(--primary-blue)] uppercase tracking-[0.2em] leading-none">
@@ -360,8 +391,9 @@ export function Shell({
             <X size={18} />
           </button>
         </div>
-        <div className="p-5 overflow-y-auto">{children}</div>
+        <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
