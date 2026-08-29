@@ -43,7 +43,6 @@ export default async function EventDetailPage({ params }: Props) {
   if (!event) notFound();
 
   const price = lowestPrice(event);
-  const capacityLeft = event.tickets.reduce((n, t) => n + t.remaining, 0);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -252,7 +251,6 @@ export default async function EventDetailPage({ params }: Props) {
                 <div className="pt-3 border-t border-gray-100 space-y-2">
                   <Row label="Lowest price">{price !== null ? formatPrice(price) : "—"}</Row>
                   <Row label="Ticket tiers">{event.tickets.length}</Row>
-                  <Row label="Capacity left">{capacityLeft}</Row>
                 </div>
               </div>
             </Card>

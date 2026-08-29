@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Ticket, AlertCircle, ArrowRight } from "lucide-react";
 import type { TicketType } from "@/lib/api";
-import PaymentModal, { Shell } from "./PaymentModal";
+import { Shell, PaymentBody } from "./PaymentModal";
 import { formatPrice } from "@/lib/format";
 import { brand } from "@/config/site";
 
@@ -41,8 +41,8 @@ export default function TicketPicker({
   const [quantity, setQuantity] = useState(1);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [paymentOpen, setPaymentOpen] = useState(false);
+  /** null = closed. The modal stays mounted across the step change. */
+  const [step, setStep] = useState<null | "checkout" | "pay">(null);
 
   const selected = tiers.find((t) => t.id === selectedId) ?? null;
   const total = selected ? Number(selected.price) * quantity : 0;
@@ -51,8 +51,10 @@ export default function TicketPicker({
   function choose(tier: TicketType) {
     setSelectedId(tier.id);
     setQuantity(1);
-    setCheckoutOpen(true);
+    setStep("checkout");
   }
+
+  const close = () => setStep(null);
 
   if (tiers.length === 0) {
     if (variant === "list") return null;
@@ -143,13 +145,27 @@ export default function TicketPicker({
         )}
       </div>
 
-      {/* Step 1 — who the tickets are for. */}
-      {selected && checkoutOpen && !paymentOpen && (
-        <Shell title="Checkout" subtitle={selected.name} onClose={() => setCheckoutOpen(false)}>
+      {/* One modal; the contents move from checkout to payment. */}
+      {selected && step && (
+        <Shell
+          title={step === "pay" ? "Complete Payment" : "Checkout"}
+          subtitle={selected.name}
+          onClose={close}
+        >
+          {step === "pay" ? (
+            <PaymentBody
+              amount={total}
+              targetId={selected.id}
+              quantity={quantity}
+              fullName={fullName.trim()}
+              email={email.trim()}
+              onClose={close}
+            />
+          ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              setPaymentOpen(true);
+              setStep("pay");
             }}
             className="space-y-5"
           >
@@ -210,23 +226,8 @@ export default function TicketPicker({
               Checkout Now <ArrowRight size={16} />
             </button>
           </form>
+          )}
         </Shell>
-      )}
-
-      {/* Step 2 — pay. */}
-      {selected && (
-        <PaymentModal
-          isOpen={paymentOpen}
-          onClose={() => {
-            setPaymentOpen(false);
-            setCheckoutOpen(false);
-          }}
-          amount={total}
-          targetId={selected.id}
-          quantity={quantity}
-          fullName={fullName.trim()}
-          email={email.trim()}
-        />
       )}
     </>
   );
