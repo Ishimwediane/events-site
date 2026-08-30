@@ -31,7 +31,7 @@ run at once.
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Django API base. Default `http://localhost:8000/api`. |
+| `NEXT_PUBLIC_API_URL` | Django API base. Defaults to the deployed Render API, so no configuration is needed to deploy. |
 | `NEXT_PUBLIC_FEATURES` | Comma list of `events,tickets,voting,gallery`. |
 | `NEXT_PUBLIC_PLATFORM_URL` | Where `/login`, `/dashboard`, `/scan` etc. redirect. Default `https://events.ozoneentertainmentz.com`. |
 | `EMAIL_USER`, `EMAIL_PASS`, `CONTACT_EMAIL` | Gmail app password for the contact form. Without them the form returns a clear "not configured" message instead of failing silently. |

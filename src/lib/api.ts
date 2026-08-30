@@ -7,7 +7,12 @@
  */
 import { envOr } from "./env";
 
-export const API_URL = envOr(process.env.NEXT_PUBLIC_API_URL, "http://localhost:8000/api");
+/**
+ * The deployed Django API is the default, so a fresh deploy works with no
+ * environment configuration at all. Point somewhere else — a local backend,
+ * a staging one — with NEXT_PUBLIC_API_URL in .env.local.
+ */
+export const API_URL = envOr(process.env.NEXT_PUBLIC_API_URL, "https://event-backend-tex3.onrender.com/api");
 
 /** How long a page may serve cached API data before refetching, in seconds. */
 const REVALIDATE = 60;
