@@ -131,8 +131,7 @@ export default function TicketPicker({
           <div className="mt-4 flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-gray-400" />
             <span>
-              Online sales are not open for this event. Call {brand.phone} or {brand.phoneAlt} to
-              reserve.
+              Online sales are not open for this event. Call {brand.phone} to reserve.
             </span>
           </div>
         )}

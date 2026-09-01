@@ -29,7 +29,6 @@ export const brand = {
   tagline:
     "Capturing moments, creating experiences. Event management, ticketing, entrance control and award voting across Kigali.",
   phone: "+250 784 731 957",
-  phoneAlt: "+250 790 305 483",
   email: "ozoneentertainments1@gmail.com",
   address: "Kimironko, Kigali",
   country: "Rwanda",

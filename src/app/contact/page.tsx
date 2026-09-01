@@ -30,7 +30,7 @@ export default async function ContactPage({ searchParams }: Props) {
       <section className="py-16">
         <div className="container-custom">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            <InfoCard icon={Phone} title="Call Us" value={brand.phone} note={brand.phoneAlt} />
+            <InfoCard icon={Phone} title="Call Us" value={brand.phone} />
             <InfoCard icon={Mail} title="Email Us" value={brand.email} />
             <InfoCard
               icon={Smartphone}

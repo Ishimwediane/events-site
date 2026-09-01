@@ -127,13 +127,6 @@ export default function FeaturedEvent({ event }: { event: Event }) {
                     <Phone className="w-4 h-4 text-[var(--orange-accent)]" />
                     {brand.phone}
                   </a>
-                  <a
-                    href={`tel:${brand.phoneAlt.replace(/\s/g, "")}`}
-                    className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold hover:text-[var(--orange-accent)] transition-colors"
-                  >
-                    <Phone className="w-4 h-4 text-[var(--orange-accent)]" />
-                    {brand.phoneAlt}
-                  </a>
                 </div>
                 <p className="text-gray-500 text-xs">
                   Ticket pick-up points:{" "}
