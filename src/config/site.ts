@@ -208,3 +208,27 @@ export const testimonials: Testimonial[] = [
     rotation: "rotate-2",
   },
 ];
+
+/**
+ * Agaciro Entertainments Awards nomination drive, shown on the homepage right
+ * after the hero. Set `open` to false when nominations close.
+ *
+ * The button opens a WhatsApp chat with `whatsappNumber`. To send people into
+ * the WhatsApp group instead, paste the group's invite link
+ * (https://chat.whatsapp.com/...) into `whatsappGroupLink`.
+ */
+export const nominations = {
+  open: true,
+  awardName: "Agaciro Entertainments Awards",
+  presentedBy: "Ozone Entertainment & NAF Model Empire",
+  flyer: "/image/agaciro-nominations.jpg",
+  whatsappNumber: "250784731957",
+  whatsappGroupLink: "",
+  whatsappMessage: "Hello, I would like to submit a nomination for the Agaciro Entertainments Awards.",
+  callNumbers: ["+250 784 731 957", "+250 738 421 387"],
+} as const;
+
+export function nominationsWhatsappUrl(): string {
+  if (nominations.whatsappGroupLink) return nominations.whatsappGroupLink;
+  return `https://wa.me/${nominations.whatsappNumber}?text=${encodeURIComponent(nominations.whatsappMessage)}`;
+}
