@@ -35,7 +35,7 @@ export default function NominationsSection() {
               <div className="relative bg-white rounded-xl overflow-hidden shadow-xl border border-gray-100">
                 <Image
                   src={nominations.flyer}
-                  alt={`${nominations.awardName}: how to file for nominations`}
+                  alt={nominations.flyerAlt}
                   width={1600}
                   height={1280}
                   sizes="(min-width: 1024px) 560px, 100vw"
