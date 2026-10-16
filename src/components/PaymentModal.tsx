@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, preconnect } from "react-dom";
 import { X, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import type { InitiatePaymentInput } from "@/lib/api";
 import { initiatePayment, getPaymentStatus } from "@/lib/api";
@@ -9,6 +9,9 @@ import { brand } from "@/config/site";
 
 /** Same cadence the organiser platform polls at. */
 const POLL_MS = 3000;
+/** While the payment page URL is still on its way. */
+const FAST_POLL_MS = 1000;
+const WEFLEXFY_URL = "https://weflexfy.com";
 /** The buyer is approving on the Weflexfy page meanwhile; give them time. */
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 /** Only trust status messages that really come from the payment page. */
@@ -40,6 +43,10 @@ export function Shell({
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Warm up the connection to the payment page while the buyer fills the
+  // form, so it opens without a fresh DNS + TLS handshake after "Pay".
+  preconnect(WEFLEXFY_URL);
 
   // One place owns the scroll lock, for the whole time the modal is open.
   useEffect(() => {
@@ -166,6 +173,9 @@ export function PayStep({
   }, [input]);
 
   const settled = state.kind === "success" || state.kind === "failed" || state.kind === "cancelled" || state.kind === "timeout";
+  // The API normally returns the payment page with initiate. Only when it fell
+  // back to the worker does the URL come from polling — then check every second.
+  const waitingForPage = state.kind === "starting";
 
   // Poll the backend: first for the payment page URL, then for the outcome.
   useEffect(() => {
@@ -185,12 +195,12 @@ export function PayStep({
         setState((s) => (s.kind === "starting" ? { kind: "paying", url: result.redirectUrl! } : s));
       }
       if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) setState({ kind: "timeout" });
-    }, POLL_MS);
+    }, waitingForPage ? FAST_POLL_MS : POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [txnRef, settled]);
+  }, [txnRef, settled, waitingForPage]);
 
   // Messages from the embedded payment page.
   useEffect(() => {
