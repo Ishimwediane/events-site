@@ -55,15 +55,11 @@ const nextConfig: NextConfig = {
    * dashboard would load the wrong JavaScript.
    */
   async rewrites() {
-    return [
-      ...PLATFORM_PATHS.flatMap((path) => [
-        { source: path, destination: `${PLATFORM_URL}${path}` },
-        { source: `${path}/:path+`, destination: `${PLATFORM_URL}${path}/:path+` },
-      ]),
-      // This site owns the /voting list, but the vote page of each campaign
-      // (/voting/<slug>/<id>, the API's public_path) lives on the platform.
-      { source: "/voting/:path+", destination: `${PLATFORM_URL}/voting/:path+` },
-    ];
+    // /voting and each campaign's vote page (/voting/<slug>/<id>) are this site's own.
+    return PLATFORM_PATHS.flatMap((path) => [
+      { source: path, destination: `${PLATFORM_URL}${path}` },
+      { source: `${path}/:path+`, destination: `${PLATFORM_URL}${path}/:path+` },
+    ]);
   },
 
   async redirects() {

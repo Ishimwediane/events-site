@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Ticket, AlertCircle, ArrowRight } from "lucide-react";
 import type { TicketType } from "@/lib/api";
-import { Shell, PaymentBody } from "./PaymentModal";
+import { toRwandaMomo } from "@/lib/api";
+import { Shell, PayStep, MomoField, FieldLabel, FormError, PayButton, momoError } from "./PaymentModal";
 import { formatPrice } from "@/lib/format";
 import { brand } from "@/config/site";
 
@@ -23,8 +24,8 @@ const NOTE: Record<ReturnType<typeof saleState>, string> = {
 };
 
 /**
- * Tier list in the page, then the same two steps the organiser platform uses:
- * a checkout modal for who the tickets are for, then the payment modal.
+ * Tier list in the page, then one modal: MoMo number + email, then the
+ * Weflexfy payment page inside the same modal.
  */
 export default function TicketPicker({
   tiers,
@@ -39,8 +40,9 @@ export default function TicketPicker({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
   /** null = closed. The modal stays mounted across the step change. */
   const [step, setStep] = useState<null | "checkout" | "pay">(null);
 
@@ -51,6 +53,7 @@ export default function TicketPicker({
   function choose(tier: TicketType) {
     setSelectedId(tier.id);
     setQuantity(1);
+    setError("");
     setStep("checkout");
   }
 
@@ -139,106 +142,76 @@ export default function TicketPicker({
         {anyOpen && variant === "rail" && (
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-[11px] text-gray-400">Secure payment by MoMo or card</span>
+            <span className="text-[11px] text-gray-400">Secure payment with MTN MoMo</span>
           </div>
         )}
       </div>
 
-      {/* One modal; the contents move from checkout to payment. */}
+      {/* One modal; the contents move from the form to the payment page. */}
       {selected && step && (
         <Shell
-          title={step === "pay" ? "Complete Payment" : "Checkout"}
-          subtitle={selected.name}
+          title={step === "pay" ? "Pay with MoMo" : "Get Ticket"}
+          subtitle={`${selected.name} · ${formatPrice(total)}`}
+          wide={step === "pay"}
           onClose={close}
         >
           {step === "pay" ? (
-            <PaymentBody
-              amount={total}
-              targetId={selected.id}
-              quantity={quantity}
-              fullName={fullName.trim()}
-              email={email.trim()}
+            <PayStep
+              input={{
+                service: "TICKET",
+                targetId: selected.id,
+                phone: toRwandaMomo(phone)!,
+                email: email.trim(),
+                quantity,
+              }}
+              successTitle="You're in!"
+              successText={
+                <>
+                  Your QR ticket has been emailed to{" "}
+                  <b className="text-[var(--primary-blue)]">{email.trim()}</b> — show it at the gate.
+                </>
+              }
+              onBack={() => setStep("checkout")}
               onClose={close}
             />
           ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setStep("pay");
-            }}
-            className="space-y-5"
-          >
-            <div className="bg-[var(--tint-blue)] rounded-lg p-4">
-              <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-1">Selected</p>
-              <div className="flex items-center justify-between">
-                <p className="text-[var(--primary-blue)] font-semibold text-sm">{selected.name}</p>
-                <p className="text-[var(--orange-accent)] font-bold">
-                  {formatPrice(selected.price)}
-                </p>
-              </div>
-            </div>
-
-            {/* Quantity is locked to 1, as on the organiser platform: multi-ticket
-                totals land on uncalibrated amounts for the mobile-money fee.
-                Restore a stepper once the full fee schedule is configured. */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-              <div className="flex items-center gap-3">
-                <Ticket className="w-4 h-4 text-[var(--orange-accent)]" />
-                <div>
-                  <p className="text-xs font-semibold text-[var(--primary-blue)]">Quantity</p>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">
-                    One ticket per order
-                  </p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-[var(--primary-blue)] w-4 text-center">
-                {quantity}
-              </span>
-            </div>
-
-            <div>
-              <Label htmlFor="co-name">Full Name</Label>
-              <input id="co-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" className="field" />
-            </div>
-
-            <div>
-              <Label htmlFor="co-email">Email</Label>
-              <input id="co-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="field" />
-              <p className="text-[11px] text-gray-400 mt-1.5">
-                Your QR ticket is emailed here — check the address carefully.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-                Total
-              </span>
-              <span className="text-lg font-bold text-[var(--primary-blue)]">
-                {formatPrice(total)}
-              </span>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-4 rounded-lg bg-[var(--orange-accent)] hover:bg-[var(--orange-hover)] text-white font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const problem = momoError(phone);
+                setError(problem ?? "");
+                if (!problem) setStep("pay");
+              }}
+              className="space-y-5"
             >
-              Checkout Now <ArrowRight size={16} />
-            </button>
-          </form>
+              <MomoField value={phone} onChange={setPhone} id="tk-phone" />
+
+              <div>
+                <FieldLabel htmlFor="tk-email">Email</FieldLabel>
+                <input
+                  id="tk-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="field"
+                />
+                <p className="text-[11px] text-gray-400 mt-1.5">Your QR ticket is sent here.</p>
+              </div>
+
+              <FormError message={error} />
+
+              {/* Quantity is locked to 1, as on the organiser platform: multi-ticket
+                  totals land on uncalibrated amounts for the mobile-money fee. */}
+              <PayButton>
+                Pay {formatPrice(total)} <ArrowRight size={16} />
+              </PayButton>
+            </form>
           )}
         </Shell>
       )}
     </>
-  );
-}
-
-function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
-  return (
-    <label
-      htmlFor={htmlFor}
-      className="block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-2"
-    >
-      {children}
-    </label>
   );
 }

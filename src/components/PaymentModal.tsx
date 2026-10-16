@@ -2,20 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Smartphone, CreditCard, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import type { PaymentMethod } from "@/lib/api";
-import {
-  initiatePayment, getPaymentStatus, MIN_PAYMENT, COUNTRY_CODES, PENDING_REF_KEY,
-} from "@/lib/api";
-import { formatPrice } from "@/lib/format";
+import { X, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
+import type { InitiatePaymentInput } from "@/lib/api";
+import { initiatePayment, getPaymentStatus, toRwandaMomo } from "@/lib/api";
 import { brand } from "@/config/site";
 
 /** Same cadence the organiser platform polls at. */
 const POLL_MS = 3000;
-/** Stop waiting eventually; the webhook can still fulfil it afterwards. */
-const POLL_TIMEOUT_MS = 3 * 60 * 1000;
-
-type Status = "IDLE" | "PROCESSING" | "SUCCESS" | "WARNING" | "ERROR" | "TIMEOUT";
+/** The buyer is approving on the Weflexfy page meanwhile; give them time. */
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+/** Only trust status messages that really come from the payment page. */
+const WEFLEXFY_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*weflexfy\.com$/;
 
 /**
  * The modal frame. Checkout and payment share ONE instance of this, switching
@@ -30,11 +27,14 @@ type Status = "IDLE" | "PROCESSING" | "SUCCESS" | "WARNING" | "ERROR" | "TIMEOUT
 export function Shell({
   title,
   subtitle,
+  wide = false,
   onClose,
   children,
 }: {
   title: string;
   subtitle?: string;
+  /** Room for the embedded payment page. */
+  wide?: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -70,7 +70,9 @@ export function Shell({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl border border-[var(--border-color)] w-full max-w-sm shadow-2xl relative max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden"
+        className={`bg-white rounded-2xl border border-[var(--border-color)] w-full ${
+          wide ? "max-w-md" : "max-w-sm"
+        } shadow-2xl relative max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden transition-[max-width] duration-300`}
       >
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div>
@@ -98,294 +100,271 @@ export function Shell({
   );
 }
 
-/**
- * The payment step's contents. Deliberately has no frame of its own — the
- * caller renders it inside the shared Shell so moving from checkout to payment
- * is a content swap, not a remount.
- */
-export function PaymentBody({
-  amount,
-  targetId,
-  quantity,
-  fullName,
-  email,
-  onClose,
-  onSuccess,
+/** The MTN MoMo number field — Rwanda only, so +250 is fixed. */
+export function MomoField({
+  value,
+  onChange,
+  id = "pay-phone",
 }: {
-  amount: number;
-  targetId: string;
-  quantity: number;
-  fullName: string;
-  email: string;
-  onClose: () => void;
-  onSuccess?: () => void;
+  value: string;
+  onChange: (v: string) => void;
+  id?: string;
 }) {
-  const [method, setMethod] = useState<PaymentMethod>("MOMO");
-  const [countryCode, setCountryCode] = useState<string>(COUNTRY_CODES[0].code);
-  const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState<Status>("IDLE");
-  const [message, setMessage] = useState("");
+  return (
+    <div>
+      <FieldLabel htmlFor={id}>MTN MoMo number</FieldLabel>
+      <div className="flex items-stretch gap-2">
+        <span className="field w-auto shrink-0 font-semibold flex items-center" aria-hidden>
+          +250
+        </span>
+        <input
+          id={id}
+          required
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          placeholder="078 000 0000"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="field flex-1"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Returns an error message, or null when the number is a valid MTN Rwanda one. */
+export function momoError(phone: string): string | null {
+  return toRwandaMomo(phone) ? null : "Enter your MTN MoMo number, e.g. 078 123 4567.";
+}
+
+export function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-2"
+    >
+      {children}
+    </label>
+  );
+}
+
+type PayState =
+  | { kind: "starting" }
+  | { kind: "paying"; url: string }
+  | { kind: "confirming" }
+  | { kind: "success" }
+  | { kind: "failed"; message: string }
+  | { kind: "cancelled" }
+  | { kind: "timeout" };
+
+/**
+ * The payment step, for tickets and votes alike. Starts the charge, shows the
+ * Weflexfy payment page inside the modal (the buyer never leaves the site),
+ * and ends on our own success screen.
+ *
+ * Weflexfy completes every payment on its hosted page — it sends no MoMo
+ * prompt by itself. The page posts PAYMENT_STATUS messages (init, success,
+ * failed, close), but the backend status endpoint is the source of truth: the
+ * order is fulfilled only when Weflexfy's webhook has marked it SUCCESS.
+ */
+export function PayStep({
+  input,
+  successTitle,
+  successText,
+  onBack,
+  onClose,
+}: {
+  input: InitiatePaymentInput;
+  successTitle: string;
+  successText: React.ReactNode;
+  /** Back to the form (wrong number, cancelled). */
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const [state, setState] = useState<PayState>({ kind: "starting" });
   const [txnRef, setTxnRef] = useState<string | null>(null);
+  const started = useRef(false);
   const startedAt = useRef(0);
 
-  // Poll while a charge is outstanding — including after a failed USSD prompt,
-  // because the buyer can still approve it manually.
+  // Start the charge once (guarded: React runs effects twice in development).
   useEffect(() => {
-    if (!txnRef || (status !== "PROCESSING" && status !== "WARNING")) return;
-    let cancelled = false;
+    if (started.current) return;
+    started.current = true;
+    startedAt.current = Date.now();
+    initiatePayment(input).then((result) => {
+      if (!result.ok) {
+        if (result.txnRef) setTxnRef(result.txnRef);
+        setState({ kind: "failed", message: result.error });
+        return;
+      }
+      setTxnRef(result.txnRef);
+      if (result.redirectUrl) setState({ kind: "paying", url: result.redirectUrl });
+    });
+  }, [input]);
 
+  const settled = state.kind === "success" || state.kind === "failed" || state.kind === "cancelled" || state.kind === "timeout";
+
+  // Poll the backend: first for the payment page URL, then for the outcome.
+  useEffect(() => {
+    if (!txnRef || settled) return;
+    let cancelled = false;
     const timer = setInterval(async () => {
       const result = await getPaymentStatus(txnRef);
       if (cancelled) return;
-
-      // Weflexfy completes every payment (MoMo too) on its hosted page, whose
-      // URL arrives here once the worker has initiated it. LMB MoMo has none.
-      if (result?.redirectUrl) {
-        clearInterval(timer);
-        sessionStorage.setItem(PENDING_REF_KEY, txnRef);
-        window.location.href = result.redirectUrl;
-        return;
-      }
-      if (result?.status === "SUCCESS") {
-        clearInterval(timer);
-        setStatus("SUCCESS");
-        onSuccess?.();
-        return;
-      }
+      if (result?.status === "SUCCESS") return setState({ kind: "success" });
       if (result?.status === "FAILED") {
-        clearInterval(timer);
-        setMessage(result.gatewayMessage || "The payment was declined. Nothing has been charged.");
-        setStatus("ERROR");
-        return;
+        return setState({
+          kind: "failed",
+          message: result.gatewayMessage || "The payment was declined. Nothing has been charged.",
+        });
       }
-      if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) {
-        clearInterval(timer);
-        setStatus("TIMEOUT");
+      if (result?.redirectUrl) {
+        setState((s) => (s.kind === "starting" ? { kind: "paying", url: result.redirectUrl! } : s));
       }
+      if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) setState({ kind: "timeout" });
     }, POLL_MS);
-
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [txnRef, status, method, onSuccess]);
+  }, [txnRef, settled]);
 
-  async function pay(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("");
+  // Messages from the embedded payment page.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (!WEFLEXFY_ORIGIN.test(e.origin)) return;
+      const data = e.data as { type?: string; status?: string } | null;
+      if (!data || data.type !== "PAYMENT_STATUS") return;
+      setState((s) => {
+        if (s.kind === "success") return s;
+        if (data.status === "success") return { kind: "confirming" };
+        if (data.status === "failed") {
+          return { kind: "failed", message: "The payment was declined. Nothing has been charged." };
+        }
+        if (data.status === "close") return { kind: "cancelled" };
+        return s;
+      });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
-    if (amount < MIN_PAYMENT) {
-      setMessage(`The minimum payment is ${formatPrice(MIN_PAYMENT)}.`);
-      setStatus("ERROR");
-      return;
-    }
-
-    setStatus("PROCESSING");
-    startedAt.current = Date.now();
-
-    const result = await initiatePayment({
-      amount,
-      phone_number: `${countryCode}${phone.replace(/\D/g, "").replace(/^0+/, "")}`,
-      email,
-      payment_method: method,
-      target_id: targetId,
-      quantity,
-      full_name: fullName,
-      card_redirect_url:
-        typeof window !== "undefined" ? `${window.location.origin}/payment-complete` : undefined,
-    });
-
-    if (!result.ok) {
-      if (result.txnRef) setTxnRef(result.txnRef);
-      setMessage(result.error);
-      setStatus("ERROR");
-      return;
-    }
-
-    setTxnRef(result.txnRef);
-
-    if (result.redirectUrl) {
-      sessionStorage.setItem(PENDING_REF_KEY, result.txnRef);
-      window.location.href = result.redirectUrl;
-      return;
-    }
-
-    if (method === "MOMO" && result.lmbStatus === "fail") {
-      setMessage(result.lmbMessage || "The prompt could not be delivered to your phone.");
-      setStatus("WARNING");
-      return;
-    }
+  if (state.kind === "starting") {
+    return (
+      <Centered>
+        <Loader2 className="animate-spin text-[var(--orange-accent)] mx-auto mb-4" size={32} />
+        <p className="text-sm text-gray-500">Opening secure MoMo payment…</p>
+      </Centered>
+    );
   }
 
-  if (status === "SUCCESS") {
+  if (state.kind === "paying") {
     return (
-      <div className="py-6 text-center">
+      <div className="-m-5">
+        <iframe
+          src={state.url}
+          title="Secure MoMo payment"
+          allow="payment"
+          className="block w-full border-0"
+          style={{ height: "min(600px, calc(100dvh - 10rem))" }}
+        />
+      </div>
+    );
+  }
+
+  if (state.kind === "confirming") {
+    return (
+      <Centered>
+        <Loader2 className="animate-spin text-[var(--orange-accent)] mx-auto mb-4" size={32} />
+        <h4 className="text-lg font-semibold text-[var(--primary-blue)] mb-1">Payment approved</h4>
+        <p className="text-sm text-gray-500">Confirming with MoMo — a few seconds…</p>
+      </Centered>
+    );
+  }
+
+  if (state.kind === "success") {
+    return (
+      <Centered>
         <div className="w-20 h-20 bg-[var(--orange-accent)]/10 text-[var(--orange-accent)] rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle2 size={40} />
         </div>
-        <h4 className="text-2xl font-semibold text-[var(--primary-blue)] mb-2">Confirmed</h4>
-        <p className="text-gray-500 text-sm leading-relaxed px-2 mb-8">
-          Payment received. Your QR {quantity === 1 ? "ticket has" : "tickets have"} been emailed to{" "}
-          <b className="text-[var(--primary-blue)]">{email}</b> — show it at the gate.
-        </p>
+        <h4 className="text-2xl font-semibold text-[var(--primary-blue)] mb-2">{successTitle}</h4>
+        <p className="text-gray-500 text-sm leading-relaxed px-2 mb-8">{successText}</p>
         <button onClick={onClose} className="w-full btn-primary py-4 justify-center">
           Done
         </button>
-      </div>
+      </Centered>
     );
   }
 
-  if (status === "WARNING") {
+  if (state.kind === "cancelled") {
     return (
-      <div className="py-6 text-center">
-        <div className="w-16 h-16 bg-[var(--orange-accent)]/10 text-[var(--orange-accent)] rounded-full flex items-center justify-center mx-auto mb-4">
-          <AlertCircle size={32} />
-        </div>
-        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">
-          Prompt did not arrive
-        </h4>
-        <p className="text-gray-500 text-sm mb-3 px-2 leading-relaxed">{message}</p>
-        <p className="text-gray-500 text-sm mb-6 px-2 leading-relaxed">
-          Dial <b className="text-[var(--primary-blue)] tracking-wider">*182*7*1#</b> on your MoMo
-          number to approve it. We are still watching for the payment.
-        </p>
-        <button onClick={() => setStatus("IDLE")} className="w-full btn-outline py-4">
-          Try Again
-        </button>
-      </div>
+      <Centered>
+        <AlertCircle size={36} className="text-gray-400 mx-auto mb-4" />
+        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Payment not finished</h4>
+        <p className="text-gray-500 text-sm mb-6 px-2">Nothing has been charged.</p>
+        <BackButton onBack={onBack} />
+      </Centered>
     );
   }
 
-  if (status === "TIMEOUT") {
+  if (state.kind === "timeout") {
     return (
-      <div className="py-6 text-center">
-        <AlertCircle size={40} className="text-gray-400 mx-auto mb-4" />
-        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">
-          Still waiting on the payment
-        </h4>
+      <Centered>
+        <AlertCircle size={36} className="text-gray-400 mx-auto mb-4" />
+        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Still waiting on the payment</h4>
         <p className="text-gray-500 text-sm mb-6 px-2 leading-relaxed">
-          If the money has left your account the tickets will still be emailed to you. Quote{" "}
-          <b className="text-[var(--primary-blue)] break-all">{txnRef}</b> if you need to call us on{" "}
-          {brand.phone}.
+          If the money left your account it will still go through. Quote{" "}
+          <b className="text-[var(--primary-blue)] break-all">{txnRef}</b> if you call us on {brand.phone}.
         </p>
         <button onClick={onClose} className="w-full btn-outline py-4">
           Close
         </button>
-      </div>
+      </Centered>
     );
   }
 
   return (
-    <form onSubmit={pay} className="space-y-5">
-      <div className="bg-[var(--tint-blue)] rounded-lg p-4 flex items-center justify-between">
-        <div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-1">Total Amount</p>
-          <p className="text-2xl font-bold text-[var(--orange-accent)]">{formatPrice(amount)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-1">Tickets</p>
-          <p className="text-[var(--primary-blue)] font-semibold text-sm">{quantity}</p>
-        </div>
-      </div>
+    <Centered>
+      <AlertCircle size={36} className="text-red-500 mx-auto mb-4" />
+      <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Payment failed</h4>
+      <p className="text-gray-500 text-sm mb-6 px-2 leading-relaxed">{state.message}</p>
+      <BackButton onBack={onBack} />
+    </Centered>
+  );
+}
 
-      <div className="grid grid-cols-2 gap-2 p-1 bg-gray-50 rounded-lg">
-        {(["MOMO", "CARD"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMethod(m)}
-            className={`flex items-center justify-center gap-2 py-3 rounded-md transition-all ${
-              method === m
-                ? "bg-[var(--orange-accent)] text-white"
-                : "text-gray-500 hover:text-[var(--primary-blue)]"
-            }`}
-          >
-            {m === "MOMO" ? <Smartphone size={16} /> : <CreditCard size={16} />}
-            <span className="font-semibold uppercase text-xs">
-              {m === "MOMO" ? "MoMo" : "Card"}
-            </span>
-          </button>
-        ))}
-      </div>
+function Centered({ children }: { children: React.ReactNode }) {
+  return <div className="py-6 text-center">{children}</div>;
+}
 
-      {method === "MOMO" && (
-        <div>
-          <label
-            htmlFor="pm-phone"
-            className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2"
-          >
-            MoMo Number
-          </label>
-          <div className="flex gap-2">
-            <select
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              aria-label="Country code"
-              className="field w-auto pr-2 font-semibold"
-            >
-              {COUNTRY_CODES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.code}
-                </option>
-              ))}
-            </select>
-            <input
-              id="pm-phone"
-              required
-              type="tel"
-              inputMode="tel"
-              placeholder="780000000"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="field flex-1"
-            />
-          </div>
-        </div>
-      )}
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button onClick={onBack} className="w-full btn-outline py-4 inline-flex items-center justify-center gap-2">
+      <ArrowLeft size={16} /> Try again
+    </button>
+  );
+}
 
-      {status === "ERROR" && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg flex gap-2">
-          <AlertCircle size={14} className="shrink-0 mt-0.5" />
-          <span>{message}</span>
-        </div>
-      )}
+/** The orange call-to-action used by both checkout forms. */
+export function PayButton({ children }: { children: React.ReactNode }) {
+  return (
+    <button
+      type="submit"
+      className="w-full py-4 rounded-lg bg-[var(--orange-accent)] hover:bg-[var(--orange-hover)] text-white font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+    >
+      {children}
+    </button>
+  );
+}
 
-      {status === "PROCESSING" && method === "MOMO" ? (
-        <div className="p-3 bg-[var(--orange-accent)]/10 border border-[var(--orange-accent)]/30 text-[var(--orange-hover)] text-xs rounded-lg flex gap-2 leading-relaxed">
-          <Smartphone size={16} className="shrink-0 mt-0.5" />
-          <span>
-            <b className="text-[var(--primary-blue)]">Check your phone</b> for the MoMo prompt and
-            enter your PIN to approve.
-            <br />
-            If your screen was off or you did not see it, unlock your phone, or dial{" "}
-            <b className="text-[var(--primary-blue)] tracking-wider">*182*7*1#</b> to approve the
-            pending payment.
-          </span>
-        </div>
-      ) : (
-        method === "MOMO" && (
-          <p className="text-[11px] text-gray-400 leading-relaxed -mt-2">
-            You will get a prompt on your phone to enter your MoMo PIN. If it does not appear, dial{" "}
-            <span className="text-[var(--primary-blue)]">*182*7*1#</span> to approve.
-          </p>
-        )
-      )}
-
-      <button
-        type="submit"
-        disabled={status === "PROCESSING"}
-        className="w-full py-4 rounded-lg bg-[var(--orange-accent)] hover:bg-[var(--orange-hover)] text-white font-semibold text-xs uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-      >
-        {status === "PROCESSING" ? (
-          <Loader2 className="animate-spin" size={18} />
-        ) : (
-          `Pay ${formatPrice(amount)}`
-        )}
-      </button>
-
-      <p className="text-[11px] text-gray-400 text-center">
-        MoMo {brand.momoCode} — {brand.legalName}
-      </p>
-    </form>
+export function FormError({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg flex gap-2">
+      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+      <span>{message}</span>
+    </div>
   );
 }
