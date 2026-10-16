@@ -189,7 +189,9 @@ export default function TicketPicker({
                   placeholder="you@example.com"
                   className="field"
                 />
-                <p className="text-[11px] text-gray-400 mt-1.5">Your QR ticket is sent here.</p>
+                <p className="text-gray-400 text-xs mt-2">
+                  Your QR ticket is sent here. You enter your MTN MoMo number on the next step.
+                </p>
               </div>
 
               {/* Quantity is locked to 1, as on the organiser platform: multi-ticket

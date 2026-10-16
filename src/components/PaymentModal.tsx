@@ -77,27 +77,21 @@ export function Shell({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-2xl border border-[var(--border-color)] w-full ${
+        className={`bg-white rounded-lg border border-gray-100 w-full ${
           wide ? "max-w-md" : "max-w-sm"
-        } shadow-2xl relative max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden transition-[max-width] duration-300`}
+        } shadow-xl relative max-h-[calc(100dvh-3rem)] flex flex-col overflow-hidden transition-[max-width] duration-300`}
       >
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--primary-blue)] uppercase tracking-[0.2em] leading-none">
-              {title}
-            </h3>
-            {subtitle && (
-              <p className="text-[9px] font-bold text-[var(--orange-accent)] uppercase tracking-[0.15em] mt-1.5">
-                {subtitle}
-              </p>
-            )}
+        <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-4 shrink-0">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-[var(--primary-blue)] leading-tight">{title}</h3>
+            {subtitle && <p className="text-gray-600 text-sm mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-gray-400 hover:text-[var(--primary-blue)] transition-colors"
+            className="text-gray-400 hover:text-[var(--orange-accent)] transition-colors duration-300 mt-0.5"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
         <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
@@ -109,10 +103,7 @@ export function Shell({
 
 export function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label
-      htmlFor={htmlFor}
-      className="block text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-2"
-    >
+    <label htmlFor={htmlFor} className="block text-sm font-semibold text-[var(--primary-blue)] mb-2">
       {children}
     </label>
   );
@@ -225,8 +216,8 @@ export function PayStep({
   if (state.kind === "starting") {
     return (
       <Centered>
-        <Loader2 className="animate-spin text-[var(--orange-accent)] mx-auto mb-4" size={32} />
-        <p className="text-sm text-gray-500">Opening secure MoMo payment…</p>
+        <Loader2 className="animate-spin text-[var(--orange-accent)] w-10 h-10" />
+        <p className="text-gray-600 text-sm">Opening secure MoMo payment…</p>
       </Centered>
     );
   }
@@ -248,22 +239,21 @@ export function PayStep({
   if (state.kind === "confirming") {
     return (
       <Centered>
-        <Loader2 className="animate-spin text-[var(--orange-accent)] mx-auto mb-4" size={32} />
-        <h4 className="text-lg font-semibold text-[var(--primary-blue)] mb-1">Payment approved</h4>
-        <p className="text-sm text-gray-500">Confirming with MoMo — a few seconds…</p>
+        <Loader2 className="animate-spin text-[var(--orange-accent)] w-10 h-10" />
+        <h3 className="text-xl font-semibold text-[var(--primary-blue)]">Payment approved</h3>
+        <p className="text-gray-600 text-sm">Confirming with MoMo — a few seconds…</p>
       </Centered>
     );
   }
 
+  // Result screens follow the contact form's "Message sent" layout.
   if (state.kind === "success") {
     return (
       <Centered>
-        <div className="w-20 h-20 bg-[var(--orange-accent)]/10 text-[var(--orange-accent)] rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 size={40} />
-        </div>
-        <h4 className="text-2xl font-semibold text-[var(--primary-blue)] mb-2">{successTitle}</h4>
-        <p className="text-gray-500 text-sm leading-relaxed px-2 mb-8">{successText}</p>
-        <button onClick={onClose} className="w-full btn-primary py-4 justify-center">
+        <CheckCircle2 className="w-14 h-14 text-[var(--orange-accent)]" />
+        <h3 className="text-xl font-semibold text-[var(--primary-blue)]">{successTitle}</h3>
+        <p className="text-gray-600 text-sm leading-relaxed max-w-xs">{successText}</p>
+        <button onClick={onClose} className="btn-primary w-full py-3 mt-4">
           Done
         </button>
       </Centered>
@@ -273,9 +263,9 @@ export function PayStep({
   if (state.kind === "cancelled") {
     return (
       <Centered>
-        <AlertCircle size={36} className="text-gray-400 mx-auto mb-4" />
-        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Payment not finished</h4>
-        <p className="text-gray-500 text-sm mb-6 px-2">Nothing has been charged.</p>
+        <AlertCircle className="w-14 h-14 text-gray-300" />
+        <h3 className="text-xl font-semibold text-[var(--primary-blue)]">Payment not finished</h3>
+        <p className="text-gray-600 text-sm">Nothing has been charged.</p>
         <BackButton onBack={onBack} />
       </Centered>
     );
@@ -284,13 +274,14 @@ export function PayStep({
   if (state.kind === "timeout") {
     return (
       <Centered>
-        <AlertCircle size={36} className="text-gray-400 mx-auto mb-4" />
-        <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Still waiting on the payment</h4>
-        <p className="text-gray-500 text-sm mb-6 px-2 leading-relaxed">
+        <AlertCircle className="w-14 h-14 text-gray-300" />
+        <h3 className="text-xl font-semibold text-[var(--primary-blue)]">Still waiting on the payment</h3>
+        <p className="text-gray-600 text-sm leading-relaxed max-w-xs">
           If the money left your account it will still go through. Quote{" "}
-          <b className="text-[var(--primary-blue)] break-all">{txnRef}</b> if you call us on {brand.phone}.
+          <span className="font-semibold text-[var(--primary-blue)] break-all">{txnRef}</span> if you call us
+          on {brand.phone}.
         </p>
-        <button onClick={onClose} className="w-full btn-outline py-4">
+        <button onClick={onClose} className="btn-outline w-full py-3 mt-4">
           Close
         </button>
       </Centered>
@@ -299,43 +290,41 @@ export function PayStep({
 
   return (
     <Centered>
-      <AlertCircle size={36} className="text-red-500 mx-auto mb-4" />
-      <h4 className="text-xl font-semibold text-[var(--primary-blue)] mb-2">Payment failed</h4>
-      <p className="text-gray-500 text-sm mb-6 px-2 leading-relaxed">{state.message}</p>
+      <AlertCircle className="w-14 h-14 text-red-500" />
+      <h3 className="text-xl font-semibold text-[var(--primary-blue)]">Payment failed</h3>
+      <p className="text-gray-600 text-sm leading-relaxed max-w-xs">{state.message}</p>
       <BackButton onBack={onBack} />
     </Centered>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div className="py-6 text-center">{children}</div>;
+  return <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">{children}</div>;
 }
 
 function BackButton({ onBack }: { onBack: () => void }) {
   return (
-    <button onClick={onBack} className="w-full btn-outline py-4 inline-flex items-center justify-center gap-2">
+    <button onClick={onBack} className="btn-outline w-full py-3 mt-4 inline-flex items-center justify-center gap-2">
       <ArrowLeft size={16} /> Try again
     </button>
   );
 }
 
-/** The orange call-to-action used by both checkout forms. */
+/** The site's orange button, full width — as on the event cards. */
 export function PayButton({ children }: { children: React.ReactNode }) {
   return (
-    <button
-      type="submit"
-      className="w-full py-4 rounded-lg bg-[var(--orange-accent)] hover:bg-[var(--orange-hover)] text-white font-semibold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-    >
+    <button type="submit" className="btn-primary w-full py-3 inline-flex items-center justify-center gap-2">
       {children}
     </button>
   );
 }
 
+/** Same as the contact form's error line. */
 export function FormError({ message }: { message: string }) {
   if (!message) return null;
   return (
-    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg flex gap-2">
-      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
   );

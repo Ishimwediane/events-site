@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Smartphone } from "lucide-react";
+import { ArrowLeft, CalendarDays, Smartphone, Users, Vote } from "lucide-react";
 import PageHero from "@/components/PageHero";
 import VotePicker from "@/components/VotePicker";
 import { getPublicCampaign } from "@/lib/api";
@@ -40,6 +40,8 @@ export default async function CampaignVotePage({ params }: Props) {
   if (!campaign) notFound();
 
   const closed = campaign.end_date !== null && new Date(campaign.end_date) < new Date();
+  const categoryCount = campaign.categories.length;
+  const nomineeCount = campaign.categories.reduce((n, c) => n + c.nominees.length, 0);
 
   return (
     <>
@@ -50,26 +52,26 @@ export default async function CampaignVotePage({ params }: Props) {
         height="h-[45vh] md:h-[50vh]"
         compact={campaign.title.length > 40}
       >
-        <div className="flex flex-wrap gap-6 justify-center text-white/80 text-[11px] uppercase tracking-[0.2em] font-semibold">
-          <span className="inline-flex items-center gap-2">
-            <Smartphone size={14} className="text-[var(--orange-accent)]" /> Vote with MTN MoMo
-          </span>
+        {/* Same stat row as the /voting hero. */}
+        <div className="flex flex-wrap gap-6 justify-center">
+          <Stat icon={Vote}>{categoryCount} Categories</Stat>
+          <Stat icon={Users}>{nomineeCount} Nominees</Stat>
+          <Stat icon={Smartphone}>Vote by MoMo</Stat>
           {campaign.end_date && (
-            <span className="inline-flex items-center gap-2">
-              <CalendarDays size={14} className="text-[var(--orange-accent)]" />
+            <Stat icon={CalendarDays}>
               {closed ? "Closed" : "Closes"} {formatDate(campaign.end_date)}
-            </span>
+            </Stat>
           )}
         </div>
       </PageHero>
 
-      <section className="py-16 md:py-20 bg-white">
+      <section className="section bg-white">
         <div className="container-custom">
           <Link
             href="/voting"
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-400 hover:text-[var(--orange-accent)] mb-10"
+            className="text-gray-600 hover:text-[var(--orange-accent)] transition-colors duration-300 text-sm inline-flex items-center gap-2 mb-12"
           >
-            <ArrowLeft size={14} /> All campaigns
+            <ArrowLeft className="w-4 h-4" /> All campaigns
           </Link>
 
           <VotePicker
@@ -80,5 +82,14 @@ export default async function CampaignVotePage({ params }: Props) {
         </div>
       </section>
     </>
+  );
+}
+
+function Stat({ icon: Icon, children }: { icon: typeof Vote; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 text-gray-200">
+      <Icon className="w-5 h-5 text-[var(--orange-accent)]" />
+      <span className="text-sm">{children}</span>
+    </div>
   );
 }
