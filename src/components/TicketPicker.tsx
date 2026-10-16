@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { Ticket, AlertCircle, ArrowRight } from "lucide-react";
 import type { TicketType } from "@/lib/api";
-import { toRwandaMomo } from "@/lib/api";
-import { Shell, PayStep, MomoField, FieldLabel, FormError, PayButton, momoError } from "./PaymentModal";
+import { Shell, PayStep, FieldLabel, PayButton } from "./PaymentModal";
 import { formatPrice } from "@/lib/format";
 import { brand } from "@/config/site";
 
@@ -24,8 +23,8 @@ const NOTE: Record<ReturnType<typeof saleState>, string> = {
 };
 
 /**
- * Tier list in the page, then one modal: MoMo number + email, then the
- * Weflexfy payment page inside the same modal.
+ * Tier list in the page, then one modal: email (for the QR ticket), then the
+ * Weflexfy payment page inside the same modal, which asks for the MoMo number.
  */
 export default function TicketPicker({
   tiers,
@@ -40,9 +39,7 @@ export default function TicketPicker({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
   /** null = closed. The modal stays mounted across the step change. */
   const [step, setStep] = useState<null | "checkout" | "pay">(null);
 
@@ -53,7 +50,6 @@ export default function TicketPicker({
   function choose(tier: TicketType) {
     setSelectedId(tier.id);
     setQuantity(1);
-    setError("");
     setStep("checkout");
   }
 
@@ -160,7 +156,6 @@ export default function TicketPicker({
               input={{
                 service: "TICKET",
                 targetId: selected.id,
-                phone: toRwandaMomo(phone)!,
                 email: email.trim(),
                 quantity,
               }}
@@ -178,14 +173,10 @@ export default function TicketPicker({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const problem = momoError(phone);
-                setError(problem ?? "");
-                if (!problem) setStep("pay");
+                setStep("pay");
               }}
               className="space-y-5"
             >
-              <MomoField value={phone} onChange={setPhone} id="tk-phone" />
-
               <div>
                 <FieldLabel htmlFor="tk-email">Email</FieldLabel>
                 <input
@@ -200,8 +191,6 @@ export default function TicketPicker({
                 />
                 <p className="text-[11px] text-gray-400 mt-1.5">Your QR ticket is sent here.</p>
               </div>
-
-              <FormError message={error} />
 
               {/* Quantity is locked to 1, as on the organiser platform: multi-ticket
                   totals land on uncalibrated amounts for the mobile-money fee. */}

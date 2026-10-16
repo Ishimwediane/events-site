@@ -240,22 +240,11 @@ export const MIN_PAYMENT = 100;
 /** sessionStorage key holding the reference across a redirect to the gateway. */
 export const PENDING_REF_KEY = "lmb_pending_ref";
 
-/**
- * Buyers are in Rwanda and pay with MTN MoMo (the only wallet on the Weflexfy
- * page). Accepts 078…/079… with or without 0, 250 or +250 and spaces; returns
- * +25078XXXXXXX, or null when it is not an MTN Rwanda number.
- */
-export function toRwandaMomo(input: string): string | null {
-  const digits = input.replace(/\D/g, "").replace(/^250/, "").replace(/^0/, "");
-  return /^7[89]\d{7}$/.test(digits) ? `+250${digits}` : null;
-}
-
 export type InitiatePaymentInput =
   | {
       service: "TICKET";
       /** The TicketType being bought. */
       targetId: string;
-      phone: string;
       /** Where the QR ticket is emailed. */
       email: string;
       quantity: number;
@@ -264,7 +253,6 @@ export type InitiatePaymentInput =
       service: "VOTE";
       /** The Nominee being voted for. */
       targetId: string;
-      phone: string;
       packageId: string;
     };
 
@@ -288,12 +276,14 @@ function firstError(data: unknown, fallback: string): string {
   return fallback;
 }
 
-/** The amount is computed by the backend from the ticket tier or vote package. */
+/**
+ * The amount is computed by the backend from the ticket tier or vote package.
+ * No phone number is sent: the Weflexfy payment page asks the buyer for it.
+ */
 export async function initiatePayment(input: InitiatePaymentInput): Promise<InitiateResult> {
   const body =
     input.service === "TICKET"
       ? {
-          phone_number: input.phone,
           email: input.email,
           payment_method: "MOMO",
           service_type: "TICKET",
@@ -301,7 +291,6 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Init
           metadata: { quantity: input.quantity },
         }
       : {
-          phone_number: input.phone,
           payment_method: "MOMO",
           service_type: "VOTE",
           target_id: input.targetId,

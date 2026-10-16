@@ -4,17 +4,16 @@ import { useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Check, Vote } from "lucide-react";
 import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
-import { toRwandaMomo } from "@/lib/api";
 import { imageUrl } from "@/lib/images";
 import { formatPrice } from "@/lib/format";
-import { Shell, PayStep, MomoField, FieldLabel, FormError, PayButton, momoError } from "./PaymentModal";
+import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
 const NOMINEE_FALLBACK = "/images/nominees.jpg";
 
 /**
- * Nominees by category, each with a Vote button. Voting is one short form —
- * MoMo number and how many votes — then the Weflexfy payment page inside the
- * same modal. No name or email: buyers are in Rwanda and pay by phone.
+ * Nominees by category, each with a Vote button. Voting is one choice — how
+ * many votes — then the Weflexfy payment page inside the same modal, which
+ * asks for the MoMo number itself. No name, email or phone here.
  */
 export default function VotePicker({
   categories,
@@ -29,7 +28,6 @@ export default function VotePicker({
 
   const [nominee, setNominee] = useState<Nominee | null>(null);
   const [packageId, setPackageId] = useState<string>(sorted[0]?.id ?? "");
-  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"form" | "pay">("form");
 
@@ -115,7 +113,6 @@ export default function VotePicker({
               input={{
                 service: "VOTE",
                 targetId: nominee.id,
-                phone: toRwandaMomo(phone)!,
                 packageId: chosen.id,
               }}
               successTitle="Thank you!"
@@ -132,14 +129,11 @@ export default function VotePicker({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const problem = chosen ? momoError(phone) : "Choose how many votes.";
-                setError(problem ?? "");
-                if (!problem) setStep("pay");
+                setError(chosen ? "" : "Choose how many votes.");
+                if (chosen) setStep("pay");
               }}
               className="space-y-5"
             >
-              <MomoField value={phone} onChange={setPhone} id="vote-phone" />
-
               <div>
                 <FieldLabel>Number of votes</FieldLabel>
                 <div className="space-y-2" role="radiogroup" aria-label="Number of votes">

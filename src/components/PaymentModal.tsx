@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import type { InitiatePaymentInput } from "@/lib/api";
-import { initiatePayment, getPaymentStatus, toRwandaMomo } from "@/lib/api";
+import { initiatePayment, getPaymentStatus } from "@/lib/api";
 import { brand } from "@/config/site";
 
 /** Same cadence the organiser platform polls at. */
@@ -100,44 +100,6 @@ export function Shell({
   );
 }
 
-/** The MTN MoMo number field — Rwanda only, so +250 is fixed. */
-export function MomoField({
-  value,
-  onChange,
-  id = "pay-phone",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  id?: string;
-}) {
-  return (
-    <div>
-      <FieldLabel htmlFor={id}>MTN MoMo number</FieldLabel>
-      <div className="flex items-stretch gap-2">
-        <span className="field w-auto shrink-0 font-semibold flex items-center" aria-hidden>
-          +250
-        </span>
-        <input
-          id={id}
-          required
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          placeholder="078 000 0000"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="field flex-1"
-        />
-      </div>
-    </div>
-  );
-}
-
-/** Returns an error message, or null when the number is a valid MTN Rwanda one. */
-export function momoError(phone: string): string | null {
-  return toRwandaMomo(phone) ? null : "Enter your MTN MoMo number, e.g. 078 123 4567.";
-}
-
 export function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
     <label
@@ -163,8 +125,8 @@ type PayState =
  * Weflexfy payment page inside the modal (the buyer never leaves the site),
  * and ends on our own success screen.
  *
- * Weflexfy completes every payment on its hosted page — it sends no MoMo
- * prompt by itself. The page posts PAYMENT_STATUS messages (init, success,
+ * Weflexfy completes every payment on its hosted page — it asks for the MoMo
+ * number and sends the prompt, so our forms never ask for it. The page posts PAYMENT_STATUS messages (init, success,
  * failed, close), but the backend status endpoint is the source of truth: the
  * order is fulfilled only when Weflexfy's webhook has marked it SUCCESS.
  */
