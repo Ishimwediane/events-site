@@ -2,8 +2,11 @@
 
 This replaces the previous corporate site (`Ozone/ozone-website`) on that domain.
 
-**API:** `https://event-backend-tex3.onrender.com/api` (Render, backed by the same Supabase
-database as local development).
+**API:** `https://api.ozoneentertainmentz.com/api` — the Django backend on Ozone's own
+server (Docker, behind a Cloudflare Tunnel). It replaced Render + Supabase on 2026-10-16;
+see `Ozone_Event/docs/server-deployment.md`. Payments go through **Weflexfy**, not LMB.
+
+> Sections below that mention Render describe the original launch and are kept for history.
 
 ## Already verified
 
@@ -39,7 +42,7 @@ Settings → Environment Variables, scope **Production**:
 
 | Variable | Value |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `https://event-backend-tex3.onrender.com/api` |
+| `NEXT_PUBLIC_API_URL` | `https://api.ozoneentertainmentz.com/api` |
 | `NEXT_PUBLIC_FEATURES` | `events,tickets,voting,gallery` |
 | `NEXT_PUBLIC_PLATFORM_URL` | `https://events.ozoneentertainmentz.com` |
 
@@ -60,46 +63,23 @@ them set, which is why `/events`, `/voting` and `/gallery` returned 404 and the 
 events. The code no longer collapses that way (a blank value now falls back properly), but without
 `NEXT_PUBLIC_API_URL` the site still points at `localhost:8000` and will render empty.
 
-## 3. CORS — nothing to do, but know why
+## 3. CORS
 
-`backend/ozone/settings/base.py:228` sets `CORS_ALLOW_ALL_ORIGINS = True`, and `prod.py` never
-turns it off. The API therefore answers every origin with
-`access-control-allow-origin: *`, confirmed against the live Render deployment. Ticket purchase
-from the new domain will work with no change.
-
-The catch: `prod.py:35` builds a `CORS_ALLOWED_ORIGINS` allowlist that **has no effect** —
-`CORS_ALLOW_ALL_ORIGINS` wins. Combined with `AllowAny` on
-`/tickets/checkout/purchase/`, any website on the internet can create tickets against this API.
-That is not a launch blocker, but it should be closed:
-
-```python
-# prod.py — make the allowlist actually apply
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
-```
-
-then on Render set:
+The API only answers the origins in `CORS_ALLOWED_ORIGINS` (set in the server's
+`.env.docker`). It currently allows:
 
 ```
-CORS_ALLOWED_ORIGINS=https://www.ozoneentertainmentz.com,https://ozoneentertainmentz.com,https://events.ozoneentertainmentz.com
+https://www.ozoneentertainmentz.com,https://ozoneentertainmentz.com,https://events.ozoneentertainmentz.com
 ```
 
-Include `events.` — that is the organiser dashboard, and it would otherwise break.
+A new domain or a `*.vercel.app` preview URL that calls the API must be added there, or the
+browser blocks its requests (ticket purchase, payment status).
 
-## 4. Render cold starts
+## 4. Payments open the Weflexfy page
 
-Render's free tier sleeps after about 15 minutes idle. The first request then takes **5–10 seconds**
-(measured: 7.0s cold, well under a second warm).
-
-Pages are statically generated with a 60-second revalidate window, so visitors are served cached
-HTML and do not wait for a cold API. Two places where the delay does show:
-
-- the first ticket purchase after an idle spell — the buyer waits on a live POST
-- a background revalidation that lands on a sleeping API — the page keeps serving stale content,
-  so no one sees an error
-
-If that becomes annoying, either move the API to a paid Render instance or ping
-`/api/events/` every 10 minutes from a cron.
+Weflexfy completes every payment — MoMo and card — on its own hosted page; it sends no phone
+prompt by itself. `PaymentModal` therefore opens the `redirect_url` the API returns for any
+method, then `/payment-complete` polls the status when the buyer comes back.
 
 ## 5. Deploy and test on the vercel.app URL — leave the domain alone for now
 

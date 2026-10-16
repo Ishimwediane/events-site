@@ -4,7 +4,7 @@ import { envOr } from "./env";
  * URL or as a relative media path, depending on how the record was created.
  * Normalise both into something <Image> can load.
  */
-const API_ORIGIN = envOr(process.env.NEXT_PUBLIC_API_URL, "https://event-backend-tex3.onrender.com/api").replace(
+const API_ORIGIN = envOr(process.env.NEXT_PUBLIC_API_URL, "https://api.ozoneentertainmentz.com/api").replace(
   /\/api\/?$/,
   "",
 );

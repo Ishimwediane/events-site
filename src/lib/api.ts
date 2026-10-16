@@ -12,7 +12,7 @@ import { envOr } from "./env";
  * environment configuration at all. Point somewhere else — a local backend,
  * a staging one — with NEXT_PUBLIC_API_URL in .env.local.
  */
-export const API_URL = envOr(process.env.NEXT_PUBLIC_API_URL, "https://event-backend-tex3.onrender.com/api");
+export const API_URL = envOr(process.env.NEXT_PUBLIC_API_URL, "https://api.ozoneentertainmentz.com/api");
 
 /** How long a page may serve cached API data before refetching, in seconds. */
 const REVALIDATE = 60;
