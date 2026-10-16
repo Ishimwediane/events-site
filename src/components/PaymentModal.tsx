@@ -138,7 +138,9 @@ export function PaymentBody({
       const result = await getPaymentStatus(txnRef);
       if (cancelled) return;
 
-      if (method === "CARD" && result?.redirectUrl) {
+      // Weflexfy completes every payment (MoMo too) on its hosted page, whose
+      // URL arrives here once the worker has initiated it. LMB MoMo has none.
+      if (result?.redirectUrl) {
         clearInterval(timer);
         sessionStorage.setItem(PENDING_REF_KEY, txnRef);
         window.location.href = result.redirectUrl;
@@ -202,7 +204,7 @@ export function PaymentBody({
 
     setTxnRef(result.txnRef);
 
-    if (method === "CARD" && result.redirectUrl) {
+    if (result.redirectUrl) {
       sessionStorage.setItem(PENDING_REF_KEY, result.txnRef);
       window.location.href = result.redirectUrl;
       return;
