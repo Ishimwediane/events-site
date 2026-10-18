@@ -7,6 +7,7 @@ import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
 import { imageUrl } from "@/lib/images";
 import { formatPrice } from "@/lib/format";
 import ShareModal from "./ShareModal";
+import { votingSlugs } from "@/lib/slug";
 import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
@@ -36,16 +37,16 @@ export default function VotePicker({
   packages: VotePackage[];
   closed: boolean;
   campaignTitle: string;
-  /** This page's path, /voting/<slug>/<public_id> — the base of every share link. */
+  /** This page's readable path, /voting/<campaign-name> — the base of every share link. */
   pagePath: string;
-  /** ?nominee=<public_id> from a shared link: open that nominee's vote popup. */
+  /** The nominee named by ?nominee= in a shared link: open their vote popup. */
   openNomineeId?: string;
 }) {
   const sorted = [...packages].sort((a, b) => a.number_of_votes - b.number_of_votes);
 
   const [nominee, setNominee] = useState<Nominee | null>(() =>
     openNomineeId && !closed
-      ? (categories.flatMap((c) => c.nominees).find((n) => String(n.public_id) === openNomineeId) ?? null)
+      ? (categories.flatMap((c) => c.nominees).find((n) => n.id === openNomineeId) ?? null)
       : null,
   );
   const [share, setShare] = useState<{ title: string; text: string; url: string } | null>(null);
@@ -79,6 +80,8 @@ export default function VotePicker({
   }
   /** Absolute link to this page (+ ?nominee=… or #category-…) for sharing. */
   const link = (suffix: string) => `${window.location.origin}${pagePath}${suffix}`;
+  // Names, not ids, in every public link: #best-female-artist, ?nominee=keza.
+  const slugs = votingSlugs({ title: campaignTitle, categories });
 
   const close = () => {
     setNominee(null);
@@ -97,7 +100,7 @@ export default function VotePicker({
           <ScrollReveal key={category.id} animation="fadeInUp">
             {/* Each category is one card: title, count and share, then its nominees. */}
             <section
-              id={`category-${category.id}`}
+              id={slugs.category.get(category.id)}
               className="scroll-mt-28 bg-white rounded-lg border border-gray-100 shadow-sm p-5 md:p-8"
             >
               <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-gray-200">
@@ -116,7 +119,7 @@ export default function VotePicker({
                     setShare({
                       title: `Share ${category.name}`,
                       text: `Vote in ${category.name} — ${campaignTitle}.`,
-                      url: link(`#category-${category.id}`),
+                      url: link(`#${slugs.category.get(category.id)}`),
                     })
                   }
                 />
@@ -184,7 +187,7 @@ export default function VotePicker({
                             setShare({
                               title: `Share ${n.name}`,
                               text: `Vote for ${n.name} in ${category.name} — ${campaignTitle}.`,
-                              url: link(n.public_id !== null ? `?nominee=${n.public_id}` : `#category-${category.id}`),
+                              url: link(`?nominee=${encodeURIComponent(slugs.nominee.get(n.id) ?? "")}`),
                             })
                           }
                         />

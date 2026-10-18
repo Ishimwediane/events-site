@@ -6,6 +6,7 @@
  * degrades to an empty state instead of a 500. Failures are logged server-side.
  */
 import { envOr } from "./env";
+import { campaignPath } from "./slug";
 
 /**
  * The deployed Django API is the default, so a fresh deploy works with no
@@ -203,8 +204,15 @@ export async function getPublicCampaign(slug: string, publicId: string): Promise
   return { ...first, categories: [...byCategory.values()] };
 }
 
-export function countNominees(campaign: VotingCampaign): number {
-  return campaign.categories.reduce((n, c) => n + (c.nominees?.length ?? 0), 0);
+/**
+ * The campaign at /voting/<name>, where <name> is its title as a slug
+ * (src/lib/slug.ts). The backend addresses campaigns by short slug + public
+ * id, so the name is resolved through the published campaigns.
+ */
+export async function getCampaignByName(name: string): Promise<PublicCampaign | null> {
+  const match = (await getCampaigns()).find((c) => campaignPath(c) === `/voting/${name}`);
+  if (!match?.slug || match.public_id === null) return null;
+  return getPublicCampaign(match.slug, String(match.public_id));
 }
 
 /* ── Ticket purchase (client-side) ───────────────────────────── */
