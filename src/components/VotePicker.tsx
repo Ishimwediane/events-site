@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ArrowRight, Check, Share2 } from "lucide-react";
+import { ArrowRight, Check, Share2, Smartphone } from "lucide-react";
 import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
 import { imageUrl } from "@/lib/images";
 import { formatPrice } from "@/lib/format";
 import ShareModal from "./ShareModal";
-import { votingSlugs } from "@/lib/slug";
+import { ussdVote, votingSlugs } from "@/lib/slug";
+import { brand } from "@/config/site";
 import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
@@ -169,6 +170,23 @@ export default function VotePicker({
                           </span>{" "}
                           {n.votes === 1 ? "vote" : "votes"}
                         </p>
+                        {/* Any phone, no internet: dial, press 1, type the code. On a
+                            phone, tapping opens the dialer with the code typed in. */}
+                        {n.public_id !== null && !closed && (
+                          <a
+                            href={ussdVote(brand.ussdCode, n.public_id).href}
+                            className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-[var(--tint-blue)] px-2 py-2 text-[var(--primary-blue)] hover:text-[var(--orange-accent)] transition-colors duration-300"
+                            title="Vote by USSD from any phone"
+                          >
+                            <Smartphone className="w-4 h-4 shrink-0 text-[var(--orange-accent)]" />
+                            <span className="text-xs leading-tight text-left">
+                              <span className="block text-gray-500">Vote by USSD</span>
+                              <span className="font-semibold tracking-wide">
+                                {ussdVote(brand.ussdCode, n.public_id).steps}
+                              </span>
+                            </span>
+                          </a>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 md:gap-2 mt-4">
@@ -186,7 +204,11 @@ export default function VotePicker({
                           onClick={() =>
                             setShare({
                               title: `Share ${n.name}`,
-                              text: `Vote for ${n.name} in ${category.name} — ${campaignTitle}.`,
+                              text:
+                                `Vote for ${n.name} in ${category.name} — ${campaignTitle}.` +
+                                (n.public_id !== null
+                                  ? ` No internet? Dial ${ussdVote(brand.ussdCode, n.public_id).steps}.`
+                                  : ""),
                               url: link(`?nominee=${encodeURIComponent(slugs.nominee.get(n.id) ?? "")}`),
                             })
                           }
@@ -288,6 +310,17 @@ export default function VotePicker({
                   })}
                 </div>
                 <p className="text-gray-400 text-xs mt-2">You enter your MTN MoMo number on the next step.</p>
+                {nominee.public_id !== null && (
+                  <p className="text-gray-400 text-xs mt-1">
+                    Or from any phone: dial{" "}
+                    <a
+                      href={ussdVote(brand.ussdCode, nominee.public_id).href}
+                      className="font-semibold text-[var(--primary-blue)] hover:text-[var(--orange-accent)]"
+                    >
+                      {ussdVote(brand.ussdCode, nominee.public_id).steps}
+                    </a>
+                  </p>
+                )}
               </div>
 
               <FormError message={error} />

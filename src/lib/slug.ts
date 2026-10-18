@@ -68,3 +68,15 @@ export function votingSlugs(campaign: CampaignLike): VotingSlugs {
 export function campaignPath(campaign: { title: string }): string {
   return `/voting/${slugify(campaign.title) || "campaign"}`;
 }
+
+/**
+ * USSD voting for a nominee: dial the code, press 1 (Vote), type the nominee
+ * code (their public_id). `href` opens the phone's dialer with the code typed
+ * in ("#" must be escaped in tel: links).
+ */
+export function ussdVote(ussdCode: string, nomineeCode: number) {
+  return {
+    steps: `${ussdCode} → 1 → ${nomineeCode}`,
+    href: `tel:${ussdCode.replace(/#/g, "%23")}`,
+  };
+}

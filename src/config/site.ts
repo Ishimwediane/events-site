@@ -33,6 +33,8 @@ export const brand = {
   address: "Kimironko, Kigali",
   country: "Rwanda",
   momoCode: "676866",
+  /** Weflexfy USSD code for voting and tickets from any phone (menu: 1 = Vote). */
+  ussdCode: "*550*2*15#",
   /** Where ticket pick-up happens for hard tickets. */
   pickupPoints: "Kicukiro, Kimironko",
 } as const;
