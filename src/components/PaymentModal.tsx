@@ -112,8 +112,8 @@ export function FieldLabel({ children, htmlFor }: { children: React.ReactNode; h
 type PayState =
   | { kind: "starting" }
   | { kind: "paying"; url: string }
-  | { kind: "confirming" }
-  | { kind: "success" }
+  /** confirmed = the backend has the webhook; false = shown from the page's own message. */
+  | { kind: "success"; confirmed: boolean }
   | { kind: "failed"; message: string }
   | { kind: "cancelled" }
   | { kind: "timeout" };
@@ -124,9 +124,11 @@ type PayState =
  * and ends on our own success screen.
  *
  * Weflexfy completes every payment on its hosted page — it asks for the MoMo
- * number and sends the prompt, so our forms never ask for it. The page posts PAYMENT_STATUS messages (init, success,
- * failed, close), but the backend status endpoint is the source of truth: the
- * order is fulfilled only when Weflexfy's webhook has marked it SUCCESS.
+ * number and sends the prompt, so our forms never ask for it. The page posts
+ * PAYMENT_STATUS messages (init, success, failed, close). On "success" the
+ * thank-you shows at once while the backend status (the source of truth: the
+ * order is fulfilled when Weflexfy's webhook marks it SUCCESS) is confirmed in
+ * the background every second; a FAILED from the backend replaces it.
  */
 export function PayStep({
   input,
@@ -134,6 +136,7 @@ export function PayStep({
   successText,
   onBack,
   onClose,
+  active = true,
 }: {
   input: InitiatePaymentInput;
   successTitle: string;
@@ -141,11 +144,22 @@ export function PayStep({
   /** Back to the form (wrong number, cancelled). */
   onBack: () => void;
   onClose: () => void;
+  /**
+   * false = prepared in the background: the charge is started and the payment
+   * page loads (hidden by the caller) while the buyer is still choosing, so
+   * "Pay" shows it with no wait. Outcome polling only runs once active.
+   */
+  active?: boolean;
 }) {
   const [state, setState] = useState<PayState>({ kind: "starting" });
   const [txnRef, setTxnRef] = useState<string | null>(null);
   const started = useRef(false);
   const startedAt = useRef(0);
+
+  // The outcome clock starts when the buyer actually sees the payment page.
+  useEffect(() => {
+    if (active) startedAt.current = Date.now();
+  }, [active]);
 
   // Start the charge once (guarded: React runs effects twice in development).
   useEffect(() => {
@@ -163,19 +177,28 @@ export function PayStep({
     });
   }, [input]);
 
-  const settled = state.kind === "success" || state.kind === "failed" || state.kind === "cancelled" || state.kind === "timeout";
+  // A success shown from the payment page's own message is still confirmed with
+  // the backend in the background (it fulfils the order when the webhook lands).
+  const unconfirmed = state.kind === "success" && !state.confirmed;
+  const settled =
+    (state.kind === "success" && state.confirmed) ||
+    state.kind === "failed" ||
+    state.kind === "cancelled" ||
+    state.kind === "timeout";
   // The API normally returns the payment page with initiate. Only when it fell
   // back to the worker does the URL come from polling — then check every second.
   const waitingForPage = state.kind === "starting";
+  const polling = Boolean(txnRef) && !settled && (active || waitingForPage);
+  const interval = waitingForPage || unconfirmed ? FAST_POLL_MS : POLL_MS;
 
   // Poll the backend: first for the payment page URL, then for the outcome.
   useEffect(() => {
-    if (!txnRef || settled) return;
+    if (!polling || !txnRef) return;
     let cancelled = false;
     const timer = setInterval(async () => {
       const result = await getPaymentStatus(txnRef);
       if (cancelled) return;
-      if (result?.status === "SUCCESS") return setState({ kind: "success" });
+      if (result?.status === "SUCCESS") return setState({ kind: "success", confirmed: true });
       if (result?.status === "FAILED") {
         return setState({
           kind: "failed",
@@ -185,13 +208,17 @@ export function PayStep({
       if (result?.redirectUrl) {
         setState((s) => (s.kind === "starting" ? { kind: "paying", url: result.redirectUrl! } : s));
       }
-      if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) setState({ kind: "timeout" });
-    }, waitingForPage ? FAST_POLL_MS : POLL_MS);
+      // Past the limit: an unconfirmed success stays a success on screen (the
+      // webhook can land later); anything else becomes the "still waiting" note.
+      if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) {
+        setState((s) => (s.kind === "success" ? { ...s, confirmed: true } : { kind: "timeout" }));
+      }
+    }, interval);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [txnRef, settled, waitingForPage]);
+  }, [polling, txnRef, interval]);
 
   // Messages from the embedded payment page.
   useEffect(() => {
@@ -201,7 +228,8 @@ export function PayStep({
       if (!data || data.type !== "PAYMENT_STATUS") return;
       setState((s) => {
         if (s.kind === "success") return s;
-        if (data.status === "success") return { kind: "confirming" };
+        // Show the thank-you at once; the backend confirms in the background.
+        if (data.status === "success") return { kind: "success", confirmed: false };
         if (data.status === "failed") {
           return { kind: "failed", message: "The payment was declined. Nothing has been charged." };
         }
@@ -233,16 +261,6 @@ export function PayStep({
           style={{ height: "min(600px, calc(100dvh - 10rem))" }}
         />
       </div>
-    );
-  }
-
-  if (state.kind === "confirming") {
-    return (
-      <Centered>
-        <Loader2 className="animate-spin text-[var(--orange-accent)] w-10 h-10" />
-        <h3 className="text-xl font-semibold text-[var(--primary-blue)]">Payment approved</h3>
-        <p className="text-gray-600 text-sm">Confirming with MoMo — a few seconds…</p>
-      </Centered>
     );
   }
 

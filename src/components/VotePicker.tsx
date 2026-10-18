@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Check, Vote } from "lucide-react";
 import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
@@ -11,6 +11,8 @@ import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
 const NOMINEE_FALLBACK = "/images/nominees.jpg";
+/** How long a vote choice must stay selected before its payment is prepared. */
+const PREPARE_DELAY_MS = 400;
 
 const votesLabel = (n: number) => `${n.toLocaleString("en-GB")} ${n === 1 ? "vote" : "votes"}`;
 
@@ -38,15 +40,34 @@ export default function VotePicker({
   const [error, setError] = useState("");
   const [step, setStep] = useState<"form" | "pay">("form");
 
+  /** The choice whose payment is being prepared in the background. */
+  const [preparedId, setPreparedId] = useState<string | null>(null);
+  /** Bumped by "Try again" so a fresh payment is prepared. */
+  const [attempt, setAttempt] = useState(0);
+
   const chosen = sorted.find((p) => p.id === packageId) ?? null;
+  const prepared = nominee ? (sorted.find((p) => p.id === preparedId) ?? null) : null;
   const canVote = !closed && sorted.length > 0;
+
+  // Prepare the payment for the selected choice once it has been the choice for
+  // a moment — quick clicks between packages do not each start a payment.
+  // Unused prepared payments expire on their own after an hour.
+  useEffect(() => {
+    if (!nominee || step !== "form" || !packageId) return;
+    const timer = setTimeout(() => setPreparedId(packageId), PREPARE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [nominee, packageId, step]);
 
   function open(n: Nominee) {
     setNominee(n);
+    setPreparedId(null);
     setError("");
     setStep("form");
   }
-  const close = () => setNominee(null);
+  const close = () => {
+    setNominee(null);
+    setPreparedId(null);
+  };
 
   const withNominees = categories.filter((c) => c.nominees.length > 0);
   if (withNominees.length === 0) {
@@ -136,26 +157,38 @@ export default function VotePicker({
           wide={step === "pay"}
           onClose={close}
         >
-          {step === "pay" && chosen ? (
-            <PayStep
-              input={{ service: "VOTE", targetId: nominee.id, packageId: chosen.id }}
-              successTitle="Thank you for voting"
-              successText={
-                <>
-                  Your {votesLabel(chosen.number_of_votes)} for{" "}
-                  <span className="font-semibold text-[var(--primary-blue)]">{nominee.name}</span> have been
-                  counted.
-                </>
-              }
-              onBack={() => setStep("form")}
-              onClose={close}
-            />
-          ) : (
+          {/* The payment for the selected choice is prepared while the buyer is
+              still on the form — hidden here — so "Pay" just reveals it. */}
+          {prepared && (
+            <div hidden={step !== "pay"}>
+              <PayStep
+                key={`${nominee.id}:${prepared.id}:${attempt}`}
+                active={step === "pay"}
+                input={{ service: "VOTE", targetId: nominee.id, packageId: prepared.id }}
+                successTitle="Thank you for voting"
+                successText={
+                  <>
+                    Your {votesLabel(prepared.number_of_votes)} for{" "}
+                    <span className="font-semibold text-[var(--primary-blue)]">{nominee.name}</span> have been
+                    counted.
+                  </>
+                }
+                onBack={() => {
+                  setAttempt((a) => a + 1);
+                  setStep("form");
+                }}
+                onClose={close}
+              />
+            </div>
+          )}
+          {step === "form" && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 setError(chosen ? "" : "Choose how many votes.");
-                if (chosen) setStep("pay");
+                if (!chosen) return;
+                setPreparedId(chosen.id); // in case Pay beat the short preparation delay
+                setStep("pay");
               }}
               className="space-y-5"
             >
