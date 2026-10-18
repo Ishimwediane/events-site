@@ -13,29 +13,45 @@ import { isEnabled } from "@/config/site";
  * A campaign's vote page — the API's public_path, /voting/<slug>/<public_id>.
  * Nominees grouped by category; voting is MoMo number + vote package only.
  */
-type Props = { params: Promise<{ slug: string; id: string }> };
+type Props = {
+  params: Promise<{ slug: string; id: string }>;
+  /** ?nominee=<public_id> — a shared nominee link opens that nominee's vote popup. */
+  searchParams: Promise<{ nominee?: string | string[] }>;
+};
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug, id } = await params;
+  const { nominee: nomineeId } = await searchParams;
   const campaign = await getPublicCampaign(slug, id);
   if (!campaign) return { title: "Voting not found" };
-  const description =
-    truncate(plainText(campaign.description ?? ""), 160) || `Vote in ${campaign.title} with MoMo.`;
+
+  // A shared nominee link previews as that nominee (WhatsApp, Facebook, X).
+  const nominee =
+    typeof nomineeId === "string"
+      ? campaign.categories.flatMap((c) => c.nominees).find((n) => String(n.public_id) === nomineeId)
+      : undefined;
+  const title = nominee ? `Vote for ${nominee.name} — ${campaign.title}` : `Vote — ${campaign.title}`;
+  const description = nominee
+    ? `Vote for ${nominee.name} in ${campaign.title} with MTN MoMo.`
+    : truncate(plainText(campaign.description ?? ""), 160) || `Vote in ${campaign.title} with MoMo.`;
+  const image = nominee?.profile_image ?? campaign.cover_image;
+
   return {
-    title: `Vote — ${campaign.title}`,
+    title,
     description,
     openGraph: {
-      title: campaign.title,
+      title,
       description,
-      images: campaign.cover_image ? [imageUrl(campaign.cover_image, "/images/awards.jpg")] : undefined,
+      images: image ? [imageUrl(image, "/images/awards.jpg")] : undefined,
     },
   };
 }
 
-export default async function CampaignVotePage({ params }: Props) {
+export default async function CampaignVotePage({ params, searchParams }: Props) {
   if (!isEnabled("voting")) notFound();
 
   const { slug, id } = await params;
+  const { nominee } = await searchParams;
   const campaign = await getPublicCampaign(slug, id);
   if (!campaign) notFound();
 
@@ -78,6 +94,9 @@ export default async function CampaignVotePage({ params }: Props) {
             categories={campaign.categories}
             packages={campaign.packages}
             closed={closed}
+            campaignTitle={campaign.title}
+            pagePath={`/voting/${encodeURIComponent(slug)}/${encodeURIComponent(id)}`}
+            openNomineeId={typeof nominee === "string" ? nominee : undefined}
           />
         </div>
       </section>

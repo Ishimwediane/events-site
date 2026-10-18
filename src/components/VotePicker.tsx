@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ArrowRight, Check, Vote } from "lucide-react";
+import { ArrowRight, Check, Share2 } from "lucide-react";
 import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
 import { imageUrl } from "@/lib/images";
 import { formatPrice } from "@/lib/format";
-import MiniHeader from "./MiniHeader";
+import ShareModal from "./ShareModal";
 import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
@@ -28,14 +28,27 @@ export default function VotePicker({
   categories,
   packages,
   closed,
+  campaignTitle,
+  pagePath,
+  openNomineeId,
 }: {
   categories: PublicCampaign["categories"];
   packages: VotePackage[];
   closed: boolean;
+  campaignTitle: string;
+  /** This page's path, /voting/<slug>/<public_id> — the base of every share link. */
+  pagePath: string;
+  /** ?nominee=<public_id> from a shared link: open that nominee's vote popup. */
+  openNomineeId?: string;
 }) {
   const sorted = [...packages].sort((a, b) => a.number_of_votes - b.number_of_votes);
 
-  const [nominee, setNominee] = useState<Nominee | null>(null);
+  const [nominee, setNominee] = useState<Nominee | null>(() =>
+    openNomineeId && !closed
+      ? (categories.flatMap((c) => c.nominees).find((n) => String(n.public_id) === openNomineeId) ?? null)
+      : null,
+  );
+  const [share, setShare] = useState<{ title: string; text: string; url: string } | null>(null);
   const [packageId, setPackageId] = useState<string>(sorted[0]?.id ?? "");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"form" | "pay">("form");
@@ -64,6 +77,9 @@ export default function VotePicker({
     setError("");
     setStep("form");
   }
+  /** Absolute link to this page (+ ?nominee=… or #category-…) for sharing. */
+  const link = (suffix: string) => `${window.location.origin}${pagePath}${suffix}`;
+
   const close = () => {
     setNominee(null);
     setPreparedId(null);
@@ -76,79 +92,113 @@ export default function VotePicker({
 
   return (
     <>
-      <div className="space-y-20">
+      <div className="space-y-10">
         {withNominees.map((category) => (
-          <section key={category.id}>
-            <ScrollReveal animation="fadeInDown">
-              <MiniHeader className="mb-3">
-                {`${category.nominees.length} ${category.nominees.length === 1 ? "Nominee" : "Nominees"}`}
-              </MiniHeader>
-              <h2 className="text-2xl md:text-3xl font-bold text-center text-[var(--primary-blue)] leading-tight">
-                {category.name}
-              </h2>
-            </ScrollReveal>
-            {category.description && (
-              <p className="text-gray-600 text-sm text-center max-w-2xl mx-auto mt-3">{category.description}</p>
-            )}
+          <ScrollReveal key={category.id} animation="fadeInUp">
+            {/* Each category is one card: title, count and share, then its nominees. */}
+            <section
+              id={`category-${category.id}`}
+              className="scroll-mt-28 bg-white rounded-lg border border-gray-100 shadow-sm p-5 md:p-8"
+            >
+              <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-gray-200">
+                <div className="min-w-0">
+                  <h2 className="text-xl md:text-2xl font-semibold text-[var(--primary-blue)] leading-tight">
+                    {category.name}
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {category.nominees.length} {category.nominees.length === 1 ? "nominee" : "nominees"}
+                    {category.description && <span className="text-gray-400"> · {category.description}</span>}
+                  </p>
+                </div>
+                <IconButton
+                  label={`Share ${category.name}`}
+                  onClick={() =>
+                    setShare({
+                      title: `Share ${category.name}`,
+                      text: `Vote in ${category.name} — ${campaignTitle}.`,
+                      url: link(`#category-${category.id}`),
+                    })
+                  }
+                />
+              </div>
 
-            {/* Flex, not grid, so a short last row (or a 3-nominee category) stays centred. */}
-            <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-8">
-              {category.nominees.map((n, i) => (
-                <ScrollReveal
-                  key={n.id}
-                  animation="scaleIn"
-                  delay={(i % 4) * 0.08}
-                  className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)]"
-                >
-                  <button
-                    type="button"
-                    disabled={!canVote}
-                    onClick={() => open(n)}
-                    className="block w-full h-full text-left group disabled:cursor-not-allowed"
+              {/* Flex, not grid, so a short last row stays centred. */}
+              <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+                {category.nominees.map((n) => (
+                  <div
+                    key={n.id}
+                    className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)] bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-500 flex flex-col border border-gray-100 group"
                   >
-                    <div className="bg-white rounded-lg overflow-hidden shadow-sm group-enabled:hover:shadow-md group-enabled:hover:-translate-y-1 transition-all duration-500 h-full flex flex-col border border-gray-100">
-                      <div className="relative aspect-square w-full p-2 pb-0">
-                        <div className="relative h-full w-full rounded-lg overflow-hidden bg-gray-100">
-                          <Image
-                            src={imageUrl(n.profile_image, NOMINEE_FALLBACK)}
-                            alt={n.name}
-                            fill
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            className="object-cover object-top group-enabled:group-hover:scale-105 transition-transform duration-700"
-                          />
-                          {n.public_id !== null && (
-                            <div className="absolute top-2 right-2 z-20">
-                              <span className="px-2 py-0.5 bg-white/95 backdrop-blur-sm rounded-lg text-[10px] font-bold uppercase tracking-widest text-[var(--orange-accent)] border border-[var(--orange-accent)]/20">
-                                #{n.public_id}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                    <button
+                      type="button"
+                      disabled={!canVote}
+                      onClick={() => open(n)}
+                      className="relative aspect-square w-full p-2 pb-0 disabled:cursor-not-allowed"
+                      aria-label={`Vote for ${n.name}`}
+                    >
+                      <div className="relative h-full w-full rounded-lg overflow-hidden bg-gray-100">
+                        <Image
+                          src={imageUrl(n.profile_image, NOMINEE_FALLBACK)}
+                          alt={n.name}
+                          fill
+                          sizes="(max-width: 768px) 50vw, 25vw"
+                          className="object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                        />
+                        {n.public_id !== null && (
+                          <div className="absolute top-2 right-2 z-20">
+                            <span className="px-2 py-0.5 bg-white/95 backdrop-blur-sm rounded-lg text-[10px] font-bold uppercase tracking-widest text-[var(--orange-accent)] border border-[var(--orange-accent)]/20">
+                              #{n.public_id}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+
+                    <div className="p-3 md:p-4 flex flex-col flex-1">
+                      <div className="flex-1 text-center">
+                        {/* Same type as the footer headings and links. */}
+                        <h3 className="text-base md:text-lg font-semibold text-[var(--primary-blue)] leading-snug group-hover:text-[var(--orange-accent)] transition-colors duration-300 line-clamp-2">
+                          {n.name}
+                        </h3>
+                        <p className="text-gray-600 text-sm mt-1.5">
+                          <span className="text-[var(--orange-accent)] font-semibold text-base">
+                            {n.votes.toLocaleString("en-GB")}
+                          </span>{" "}
+                          {n.votes === 1 ? "vote" : "votes"}
+                        </p>
                       </div>
 
-                      <div className="p-4 flex flex-col flex-1">
-                        <div className="flex-1">
-                          <h3 className="text-base font-bold mb-1.5 leading-tight text-[var(--primary-blue)] group-enabled:group-hover:text-[var(--orange-accent)] transition-colors line-clamp-2">
-                            {n.name}
-                          </h3>
-                          <div className="h-px w-full bg-gray-50 my-3" />
-                          <div className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-4">
-                            <Vote className="w-3 h-3 text-gray-300" />
-                            {votesLabel(n.votes)}
-                          </div>
-                        </div>
-                        <span className="block w-full py-2.5 rounded-lg bg-[var(--orange-accent)] group-enabled:group-hover:bg-[var(--orange-hover)] group-disabled:opacity-40 transition-all text-white font-bold text-[11px] uppercase tracking-widest shadow-sm text-center">
+                      <div className="flex items-center gap-1.5 md:gap-2 mt-4">
+                        <button
+                          type="button"
+                          disabled={!canVote}
+                          onClick={() => open(n)}
+                          className="btn-primary flex-1 min-w-0 px-2 md:px-5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
                           {closed ? "Voting closed" : "Vote"}
-                        </span>
+                        </button>
+                        <IconButton
+                          small
+                          label={`Share ${n.name}`}
+                          onClick={() =>
+                            setShare({
+                              title: `Share ${n.name}`,
+                              text: `Vote for ${n.name} in ${category.name} — ${campaignTitle}.`,
+                              url: link(n.public_id !== null ? `?nominee=${n.public_id}` : `#category-${category.id}`),
+                            })
+                          }
+                        />
                       </div>
                     </div>
-                  </button>
-                </ScrollReveal>
-              ))}
-            </div>
-          </section>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </ScrollReveal>
         ))}
       </div>
+
+      {share && <ShareModal {...share} onClose={() => setShare(null)} />}
 
       {nominee && (
         <Shell
@@ -247,5 +297,20 @@ export default function VotePicker({
         </Shell>
       )}
     </>
+  );
+}
+
+/** Square share button, as in the category header and on each nominee. */
+function IconButton({ label, onClick, small = false }: { label: string; onClick: () => void; small?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`shrink-0 ${small ? "w-9 h-9 md:w-10 md:h-10" : "w-10 h-10"} rounded-lg border border-gray-200 text-gray-600 hover:text-[var(--orange-accent)] hover:border-[var(--orange-accent)] flex items-center justify-center transition-colors duration-300`}
+    >
+      <Share2 className="w-4 h-4" />
+    </button>
   );
 }
