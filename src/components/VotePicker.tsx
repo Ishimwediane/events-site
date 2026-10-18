@@ -126,11 +126,11 @@ export default function VotePicker({
               </div>
 
               {/* Flex, not grid, so a short last row stays centred. */}
-              <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+              <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
                 {category.nominees.map((n) => (
                   <div
                     key={n.id}
-                    className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)] bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-500 flex flex-col border border-gray-100 group"
+                    className="w-full max-w-sm sm:max-w-none sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-500 flex flex-col border border-gray-100 group"
                   >
                     <button
                       type="button"
@@ -144,7 +144,7 @@ export default function VotePicker({
                           src={imageUrl(n.profile_image, NOMINEE_FALLBACK)}
                           alt={n.name}
                           fill
-                          sizes="(max-width: 768px) 50vw, 25vw"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           className="object-cover object-top group-hover:scale-105 transition-transform duration-700"
                         />
                         {n.public_id !== null && (
