@@ -70,13 +70,13 @@ export function campaignPath(campaign: { title: string }): string {
 }
 
 /**
- * USSD voting for a nominee: dial the code, press 1 (Vote), type the nominee
- * code (their public_id). `href` opens the phone's dialer with the code typed
- * in ("#" must be escaped in tel: links).
+ * USSD voting for a nominee in one dial: the app code + "*1" (Vote) + the
+ * nominee code (their public_id), e.g. *550*2*15# and 5 → *550*2*15*1*5#.
+ * The backend plays the extra numbers as if typed and opens that nominee's
+ * vote choices (shortcut dials confirmed working on MTN via Weflexfy).
+ * `href` opens the phone's dialer with it typed in ("#" escaped for tel:).
  */
 export function ussdVote(ussdCode: string, nomineeCode: number) {
-  return {
-    steps: `${ussdCode} → 1 → ${nomineeCode}`,
-    href: `tel:${ussdCode.replace(/#/g, "%23")}`,
-  };
+  const dial = `${ussdCode.replace(/#$/, "")}*1*${nomineeCode}#`;
+  return { steps: dial, href: `tel:${dial.replace(/#/g, "%23")}` };
 }
