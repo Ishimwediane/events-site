@@ -7,6 +7,7 @@ import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
 import { imageUrl } from "@/lib/images";
 import { formatPrice } from "@/lib/format";
 import ShareModal from "./ShareModal";
+import Windowed from "./Windowed";
 import { ussdVote, votingSlugs } from "@/lib/slug";
 import { brand } from "@/config/site";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
@@ -72,6 +73,34 @@ export default function VotePicker({
   const prepared = nominee ? (sorted.find((p) => p.id === preparedId) ?? null) : null;
   const canVote = !closed && sorted.length > 0;
 
+  // A #category link: the categories passed on the way load and grow
+  // (Windowed), pushing the target down. Jump instantly and re-align until it
+  // stays put; stop as soon as the visitor scrolls themselves.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const HEADER = 96;
+    let tries = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const stop = () => clearTimeout(timer);
+    const align = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        const off = el.getBoundingClientRect().top - HEADER;
+        if (Math.abs(off) > 8) window.scrollBy({ top: off, behavior: "instant" });
+      }
+      if (++tries < 15) timer = setTimeout(align, 200);
+    };
+    timer = setTimeout(align, 150);
+    window.addEventListener("touchstart", stop, { once: true, passive: true });
+    window.addEventListener("wheel", stop, { once: true, passive: true });
+    return () => {
+      stop();
+      window.removeEventListener("touchstart", stop);
+      window.removeEventListener("wheel", stop);
+    };
+  }, []);
+
   // Prepare the payment for the selected choice once it has been the choice for
   // a moment — quick clicks between packages do not each start a payment.
   // Unused prepared payments expire on their own after an hour.
@@ -106,14 +135,10 @@ export default function VotePicker({
     <>
       <div className="space-y-10">
         {/* Each category is one card: title, count and share, then its nominees.
-            content-visibility lets the phone skip drawing cards off screen. */}
-        {withNominees.map((category) => (
-            <section
-              key={category.id}
-              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}
-              id={slugs.category.get(category.id)}
-              className="scroll-mt-28 bg-white rounded-lg border border-gray-100 shadow-sm p-5 md:p-8"
-            >
+            Windowed unloads categories far off screen so memory stays flat. */}
+        {withNominees.map((category, index) => (
+          <Windowed key={category.id} id={slugs.category.get(category.id)} className="scroll-mt-28" initiallyVisible={index < 2}>
+            <section className="bg-white rounded-lg border border-gray-100 shadow-sm p-5 md:p-8">
               <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-gray-200">
                 <div className="min-w-0">
                   <h2 className="text-xl md:text-2xl font-semibold text-[var(--primary-blue)] leading-tight">
@@ -241,6 +266,7 @@ export default function VotePicker({
                 </div>
               )}
             </section>
+          </Windowed>
         ))}
       </div>
 
