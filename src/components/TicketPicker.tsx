@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Ticket, AlertCircle, ArrowRight } from "lucide-react";
 import type { TicketType } from "@/lib/api";
-import { Shell, PayStep, FieldLabel, PayButton } from "./PaymentModal";
+import { Shell, PayStep, FieldLabel, PayButton, WarmPaymentPage } from "./PaymentModal";
 import { formatPrice } from "@/lib/format";
 import { brand } from "@/config/site";
 
@@ -70,6 +70,7 @@ export default function TicketPicker({
 
   return (
     <>
+      {anyOpen && <WarmPaymentPage />}
       <div
         className={
           variant === "rail"

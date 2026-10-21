@@ -101,6 +101,59 @@ export function Shell({
   );
 }
 
+/** Any payment URL loads the page's whole app; this token matches no payment. */
+const WARM_URL = `${WEFLEXFY_URL}/payment/00000000-0000-0000-0000-000000000000`;
+/** The page keeps fetching its code chunks for a while after "load". */
+const WARM_KEEP_MS = 15000;
+let warmStarted = false;
+
+/**
+ * Weflexfy's payment page is ~1.2 MB in 300+ files — 7-10 s on a phone. Loaded
+ * once in a hidden frame after this page settles, its files are cached, and
+ * the real payment page then opens in about 3 s. Same frame-in-this-site
+ * setup as the real one, so it lands in the same (partitioned) browser cache.
+ * Skipped when the phone asks to save data.
+ */
+export function WarmPaymentPage() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData) return;
+    try {
+      if (sessionStorage.getItem("weflexfy-warm")) return;
+    } catch {}
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      timer = setTimeout(() => {
+        // An event page can hold two ticket lists; warm up once.
+        if (warmStarted) return;
+        warmStarted = true;
+        try {
+          sessionStorage.setItem("weflexfy-warm", "1");
+        } catch {}
+        setShow(true);
+        timer = setTimeout(() => setShow(false), WARM_KEEP_MS);
+      }, 1500);
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("load", start);
+    };
+  }, []);
+  if (!show) return null;
+  return (
+    <iframe
+      src={WARM_URL}
+      title=""
+      aria-hidden
+      tabIndex={-1}
+      className="fixed w-px h-px opacity-0 pointer-events-none -left-[9999px] top-0"
+    />
+  );
+}
+
 export function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
     <label htmlFor={htmlFor} className="block text-sm font-semibold text-[var(--primary-blue)] mb-2">
@@ -155,6 +208,7 @@ export function PayStep({
   const [txnRef, setTxnRef] = useState<string | null>(null);
   const started = useRef(false);
   const startedAt = useRef(0);
+  const frame = useRef<HTMLIFrameElement>(null);
 
   // The outcome clock starts when the buyer actually sees the payment page.
   useEffect(() => {
@@ -224,6 +278,8 @@ export function PayStep({
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (!WEFLEXFY_ORIGIN.test(e.origin)) return;
+      // Only this payment's frame — not the warm-up frame or another payment.
+      if (e.source !== frame.current?.contentWindow) return;
       const data = e.data as { type?: string; status?: string } | null;
       if (!data || data.type !== "PAYMENT_STATUS") return;
       setState((s) => {
@@ -254,6 +310,7 @@ export function PayStep({
     return (
       <div className="-m-5">
         <iframe
+          ref={frame}
           src={state.url}
           title="Secure MoMo payment"
           allow="payment"
