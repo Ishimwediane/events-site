@@ -1,28 +1,55 @@
+import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getPublicCampaign } from "@/lib/api";
-import { campaignPath, votingSlugs } from "@/lib/slug";
+import CampaignVoteView, { campaignMetadata, findNominee } from "@/components/CampaignVoteView";
+import { getCampaignByName, getPublicCampaign } from "@/lib/api";
+import { campaignPath } from "@/lib/slug";
+import { isEnabled } from "@/config/site";
 
 /**
- * The old vote page address, /voting/<short-slug>/<public_id> (?nominee=<public_id>),
- * which the API's public_path and links already shared still use. Redirects
- * to the readable one: /voting/<campaign-name>?nominee=<nominee-name>.
+ * Two kinds of address share this route:
+ *
+ *   /voting/<campaign-name>/<nominee-name>   a nominee's own link: the campaign
+ *                                            page with their vote popup open,
+ *                                            previewing as that nominee
+ *   /voting/<short-slug>/<public_id>         the API's old public_path, and
+ *                                            links shared before: redirected to
+ *                                            the readable campaign address
+ *
+ * Cached by Vercel and refreshed every 60 s, like the campaign page.
  */
-type Props = {
-  params: Promise<{ slug: string; id: string }>;
-  searchParams: Promise<{ nominee?: string | string[] }>;
-};
+export const revalidate = 60;
 
-export default async function LegacyVotePage({ params, searchParams }: Props) {
+export async function generateStaticParams() {
+  return [];
+}
+
+type Props = { params: Promise<{ slug: string; id: string }> };
+
+async function resolve(slug: string, id: string) {
+  const campaign = await getCampaignByName(slug);
+  if (campaign) return { campaign, nominee: findNominee(campaign, decodeURIComponent(id)) };
+  return { campaign: null, nominee: undefined };
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, id } = await params;
-  const { nominee } = await searchParams;
-  const campaign = await getPublicCampaign(slug, id);
-  if (!campaign) notFound();
+  const { campaign, nominee } = await resolve(slug, id);
+  return campaign ? campaignMetadata(campaign, nominee) : { title: "Voting" };
+}
 
-  let query = "";
-  if (typeof nominee === "string" && nominee) {
-    const found = campaign.categories.flatMap((c) => c.nominees).find((n) => String(n.public_id) === nominee);
-    const name = found && votingSlugs(campaign).nominee.get(found.id);
-    if (name) query = `?nominee=${encodeURIComponent(name)}`;
+export default async function NomineeOrLegacyPage({ params }: Props) {
+  if (!isEnabled("voting")) notFound();
+  const { slug, id } = await params;
+  const { campaign, nominee } = await resolve(slug, id);
+
+  if (campaign) {
+    // Unknown nominee name: show the campaign rather than an error.
+    if (!nominee) permanentRedirect(campaignPath(campaign));
+    return <CampaignVoteView campaign={campaign} openNomineeId={nominee.id} />;
   }
-  permanentRedirect(`${campaignPath(campaign)}${query}`);
+
+  // The old /voting/<short-slug>/<public_id> form.
+  const legacy = await getPublicCampaign(slug, id);
+  if (!legacy) notFound();
+  permanentRedirect(campaignPath(legacy));
 }

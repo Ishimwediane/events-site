@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ArrowRight, Check, Share2, Smartphone } from "lucide-react";
 import type { Nominee, PublicCampaign, VotePackage } from "@/lib/api";
@@ -47,7 +48,7 @@ export default function VotePicker({
   campaignTitle: string;
   /** This page's readable path, /voting/<campaign-name> — the base of every share link. */
   pagePath: string;
-  /** The nominee named by ?nominee= in a shared link: open their vote popup. */
+  /** The nominee whose own link (/voting/<campaign>/<nominee>) was opened: open their vote popup. */
   openNomineeId?: string;
 }) {
   const sorted = [...packages].sort((a, b) => a.number_of_votes - b.number_of_votes);
@@ -75,27 +76,34 @@ export default function VotePicker({
 
   // A #category link: the categories passed on the way load and grow
   // (Windowed), pushing the target down. Jump instantly and re-align until it
-  // stays put; stop as soon as the visitor scrolls themselves.
+  // stays put; stop as soon as the visitor scrolls themselves. Runs on load
+  // and whenever the #category changes on the same page (a tapped link).
   useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (!id) return;
     const HEADER = 96;
-    let tries = 0;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const stop = () => clearTimeout(timer);
-    const align = () => {
-      const el = document.getElementById(id);
-      if (el) {
-        const off = el.getBoundingClientRect().top - HEADER;
-        if (Math.abs(off) > 8) window.scrollBy({ top: off, behavior: "instant" });
-      }
-      if (++tries < 15) timer = setTimeout(align, 200);
+    const alignToHash = () => {
+      stop();
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id) return;
+      let tries = 0;
+      const align = () => {
+        const el = document.getElementById(id);
+        if (el) {
+          const off = el.getBoundingClientRect().top - HEADER;
+          if (Math.abs(off) > 8) window.scrollBy({ top: off, behavior: "instant" });
+        }
+        if (++tries < 15) timer = setTimeout(align, 200);
+      };
+      timer = setTimeout(align, 150);
     };
-    timer = setTimeout(align, 150);
-    window.addEventListener("touchstart", stop, { once: true, passive: true });
-    window.addEventListener("wheel", stop, { once: true, passive: true });
+    alignToHash();
+    window.addEventListener("hashchange", alignToHash);
+    window.addEventListener("touchstart", stop, { passive: true });
+    window.addEventListener("wheel", stop, { passive: true });
     return () => {
       stop();
+      window.removeEventListener("hashchange", alignToHash);
       window.removeEventListener("touchstart", stop);
       window.removeEventListener("wheel", stop);
     };
@@ -116,9 +124,9 @@ export default function VotePicker({
     setError("");
     setStep("form");
   }
-  /** Absolute link to this page (+ ?nominee=… or #category-…) for sharing. */
+  /** Absolute link to this page (+ /<nominee> or #<category>) for sharing. */
   const link = (suffix: string) => `${window.location.origin}${pagePath}${suffix}`;
-  // Names, not ids, in every public link: #best-female-artist, ?nominee=keza.
+  // Names, not ids, in every public link: #best-female-artist, /keza.
   const slugs = votingSlugs({ title: campaignTitle, categories });
 
   const close = () => {
@@ -245,7 +253,7 @@ export default function VotePicker({
                                 (n.public_id !== null
                                   ? ` No internet? Dial ${ussdVote(brand.ussdCode, n.public_id).steps}.`
                                   : ""),
-                              url: link(`?nominee=${encodeURIComponent(slugs.nominee.get(n.id) ?? "")}`),
+                              url: link(`/${encodeURIComponent(slugs.nominee.get(n.id) ?? "")}`),
                             })
                           }
                         />
@@ -271,6 +279,21 @@ export default function VotePicker({
       </div>
 
       {share && <ShareModal {...share} onClose={() => setShare(null)} />}
+
+      {/* Links shared before nominees had their own address (?nominee=keza or
+          the old ?nominee=72). Read in the browser so the page stays cached. */}
+      {canVote && (
+        <Suspense fallback={null}>
+          <OpenFromQuery
+            find={(key) =>
+              categories
+                .flatMap((c) => c.nominees)
+                .find((n) => slugs.nominee.get(n.id) === key || String(n.public_id) === key)
+            }
+            onFound={open}
+          />
+        </Suspense>
+      )}
 
       {nominee && (
         <Shell
@@ -396,4 +419,17 @@ function IconButton({ label, onClick, small = false }: { label: string; onClick:
       <Share2 className="w-4 h-4" />
     </button>
   );
+}
+
+/** Opens the vote popup for an old ?nominee= link, once. */
+function OpenFromQuery({ find, onFound }: { find: (key: string) => Nominee | undefined; onFound: (n: Nominee) => void }) {
+  const key = useSearchParams().get("nominee");
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !key) return;
+    done.current = true;
+    const nominee = find(key);
+    if (nominee) onFound(nominee);
+  }, [key, find, onFound]);
+  return null;
 }
