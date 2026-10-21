@@ -1,37 +1,14 @@
 import type { NextConfig } from "next";
 
 /**
- * The organiser dashboard, ticket checkout and gate scanner are a separate
- * Next.js app (../frontend), deployed as the `event` Vercel project on
- * events.ozoneentertainmentz.com. This site hands those paths over to it.
+ * The organiser dashboard, gate scanner and sign-up flow (/dashboard, /admin,
+ * /login, /register, /scan, /pending, /apply, /company, /payment-return) used
+ * to be a separate app on events.ozoneentertainmentz.com that this site
+ * proxied. They are now part of this site (src/platform + those routes), so
+ * nothing is forwarded any more.
  */
-const PLATFORM_URL = (
-  process.env.NEXT_PUBLIC_PLATFORM_URL || "https://events.ozoneentertainmentz.com"
-).replace(/\/$/, "");
-
-/**
- * Paths this site forwards to the platform.
- *
- * Deliberately NOT listed: /events, /voting, /contact and /services. The
- * platform has pages at all four, but so does this site, and this site owns
- * them — forwarding those would send visitors away from the public site.
- * /item-details-demo is also left out; it is a demo page.
- */
-const PLATFORM_PATHS = [
-  "/login",
-  "/register",
-  "/dashboard",
-  "/admin",
-  "/scan",
-  "/pending",
-  // NOT /payment-complete — this site owns that page now, because it is where
-  // the card gateway returns a buyer after a purchase made here.
-  "/payment-return",
-  // The organiser sign-up flow. Nothing on the public site links to it, but the
-  // URLs keep working for anyone who has them.
-  "/apply",
-  "/company",
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.ozoneentertainmentz.com/api";
+const apiHost = new URL(API_URL).hostname;
 
 const nextConfig: NextConfig = {
   images: {
@@ -41,25 +18,9 @@ const nextConfig: NextConfig = {
       // Local media served by `manage.py runserver` during development.
       { protocol: "http", hostname: "localhost", port: "8000", pathname: "/media/**" },
       { protocol: "http", hostname: "127.0.0.1", port: "8000", pathname: "/media/**" },
+      // Media the dashboard shows straight from the API (logos, ticket templates).
+      { protocol: "https", hostname: apiHost, pathname: "/media/**" },
     ],
-  },
-
-  /**
-   * Proxy the platform's pages so they are served AT this domain — the address
-   * bar stays on ozoneentertainmentz.com instead of jumping to the events
-   * subdomain.
-   *
-   * This only works because the platform sets `assetPrefix` to its own origin
-   * (see ../frontend/next.config.ts). Without that, its HTML would ask this
-   * domain for /_next/* and collide with this site's own chunks, and the
-   * dashboard would load the wrong JavaScript.
-   */
-  async rewrites() {
-    // /voting and each campaign's vote page (/voting/<slug>/<id>) are this site's own.
-    return PLATFORM_PATHS.flatMap((path) => [
-      { source: path, destination: `${PLATFORM_URL}${path}` },
-      { source: `${path}/:path+`, destination: `${PLATFORM_URL}${path}/:path+` },
-    ]);
   },
 
   async redirects() {
