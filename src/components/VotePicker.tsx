@@ -12,7 +12,8 @@ import { brand } from "@/config/site";
 import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
-const NOMINEE_FALLBACK = "/images/nominees.jpg";
+/** Shown until a nominee has a photo: the AGACIRO "Vote nominee / how to vote" poster. */
+const NOMINEE_FALLBACK = "/images/nominee-placeholder.jpg";
 /** How long a vote choice must stay selected before its payment is prepared. */
 const PREPARE_DELAY_MS = 400;
 
