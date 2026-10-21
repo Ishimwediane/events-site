@@ -179,3 +179,69 @@ html {
   .animate-slideInLeft,
   .animate-slideInRight { animation: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Organiser dashboard (src/platform, merged from the former
+   events.ozoneentertainmentz.com app, which used Tailwind 3).
+   Its colour names become theme utilities (bg-deep-navy,
+   text-primary, shadow-primary-glow…); its component classes and
+   Tailwind 3 defaults apply only inside .platform (SiteChrome),
+   so nothing here changes the public site.
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --color-primary: #F39C12;
+  --color-accent-gold: #D68910;
+  --color-deep-navy: #08283B;
+  --color-navy: #1a3a4a;
+  --color-text-muted: #A0AEC0;
+  --shadow-primary-glow: 0 4px 15px rgba(243, 156, 18, 0.3);
+  --shadow-primary-glow-hover: 0 6px 20px rgba(243, 156, 18, 0.4);
+}
+
+@utility bg-gradient-radial {
+  background-image: radial-gradient(var(--tw-gradient-stops));
+}
+
+@layer base {
+  /* Tailwind 3 defaults the dashboard was designed with. */
+  .platform *,
+  .platform ::before,
+  .platform ::after {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  .platform input::placeholder,
+  .platform textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+  .platform button:not(:disabled),
+  .platform [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .platform .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .platform .text-gradient {
+    background: linear-gradient(135deg, #ffffff 0%, #F39C12 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* The dashboard's own primary button (black text, rounded-xl), not the site's. */
+  .platform .btn-primary {
+    @apply bg-primary text-black px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer;
+    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+  }
+  .platform .btn-primary:hover {
+    @apply bg-accent-gold -translate-y-0.5;
+    box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+  }
+  .platform .btn-primary:disabled {
+    @apply opacity-50 grayscale cursor-not-allowed;
+    transform: none !important;
+  }
+}
