@@ -201,7 +201,7 @@ export default function AdminFinancePage() {
                             </tbody>
                         </table>
                     </div>
-                    <p className="px-5 py-3 text-[11px] text-gray-400 border-t border-gray-50">Amounts in RWF. Only payments that went through are counted; tickets sold at the door are not.</p>
+                    <p className="px-5 py-3 text-[11px] text-gray-400 border-t border-gray-50">Amounts in RWF. Only payments that went through are counted; tickets sold at the door are not. Weflexfy {shares.gateway}% and developer {shares.developer}% are taken only from payments made through Weflexfy (from October 2026); earlier payments through LMB are all yours.</p>
                 </div>
             </div>
         </>
@@ -225,7 +225,7 @@ function SplitCards({ title, subtitle, split, shares }: { title: string; subtitl
                     <p className="text-4xl font-bold text-white">{fmt(split.received)} <span className="text-lg font-bold text-white/40">RWF</span></p>
                 </div>
                 <div className="sm:text-right">
-                    <p className="text-sm font-medium text-green-300">Your revenue ({shares.host}%)</p>
+                    <p className="text-sm font-medium text-green-300">Your revenue</p>
                     <p className="text-3xl font-bold text-green-400">{fmt(split.host)} <span className="text-base font-bold text-green-400/60">RWF</span></p>
                 </div>
             </div>
