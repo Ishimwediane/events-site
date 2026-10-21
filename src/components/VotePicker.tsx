@@ -9,11 +9,16 @@ import { formatPrice } from "@/lib/format";
 import ShareModal from "./ShareModal";
 import { ussdVote, votingSlugs } from "@/lib/slug";
 import { brand } from "@/config/site";
-import ScrollReveal from "./ScrollReveal";
 import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
 
 /** Shown until a nominee has a photo: the AGACIRO "Vote nominee / how to vote" poster. */
 const NOMINEE_FALLBACK = "/images/nominee-placeholder.jpg";
+/**
+ * Nominees shown per category before "Show all". Long campaigns (AGACIRO: 67)
+ * crashed Chrome on iPhone while scrolling: every card's layers at 3x took
+ * more graphics memory than the tab is allowed.
+ */
+const FIRST_NOMINEES = 8;
 /** How long a vote choice must stay selected before its payment is prepared. */
 const PREPARE_DELAY_MS = 400;
 
@@ -52,6 +57,8 @@ export default function VotePicker({
       : null,
   );
   const [share, setShare] = useState<{ title: string; text: string; url: string } | null>(null);
+  /** Categories opened with "Show all"; the others show their first nominees only. */
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [packageId, setPackageId] = useState<string>(sorted[0]?.id ?? "");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"form" | "pay">("form");
@@ -98,10 +105,12 @@ export default function VotePicker({
   return (
     <>
       <div className="space-y-10">
+        {/* Each category is one card: title, count and share, then its nominees.
+            content-visibility lets the phone skip drawing cards off screen. */}
         {withNominees.map((category) => (
-          <ScrollReveal key={category.id} animation="fadeInUp">
-            {/* Each category is one card: title, count and share, then its nominees. */}
             <section
+              key={category.id}
+              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}
               id={slugs.category.get(category.id)}
               className="scroll-mt-28 bg-white rounded-lg border border-gray-100 shadow-sm p-5 md:p-8"
             >
@@ -129,10 +138,10 @@ export default function VotePicker({
 
               {/* Flex, not grid, so a short last row stays centred. */}
               <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-                {category.nominees.map((n) => (
+                {(expanded.has(category.id) ? category.nominees : category.nominees.slice(0, FIRST_NOMINEES)).map((n) => (
                   <div
                     key={n.id}
-                    className="w-full max-w-sm sm:max-w-none sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-500 flex flex-col border border-gray-100 group"
+                    className="w-full max-w-sm sm:max-w-none sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] bg-white rounded-lg overflow-hidden shadow-sm md:hover:shadow-md md:hover:-translate-y-1 md:transition-all md:duration-500 flex flex-col border border-gray-100 group"
                   >
                     <button
                       type="button"
@@ -146,12 +155,13 @@ export default function VotePicker({
                           src={imageUrl(n.profile_image, NOMINEE_FALLBACK)}
                           alt={n.name}
                           fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                          // 60vw on phones = about 2x sharp, not 3x: same look, half the memory.
+                          sizes="(max-width: 640px) 60vw, (max-width: 1024px) 50vw, 33vw"
+                          className="object-cover object-top md:group-hover:scale-105 md:transition-transform md:duration-700"
                         />
                         {n.public_id !== null && (
                           <div className="absolute top-2 right-2 z-20">
-                            <span className="px-2 py-0.5 bg-white/95 backdrop-blur-sm rounded-lg text-[10px] font-bold uppercase tracking-widest text-[var(--orange-accent)] border border-[var(--orange-accent)]/20">
+                            <span className="px-2 py-0.5 bg-white rounded-lg text-[10px] font-bold uppercase tracking-widest text-[var(--orange-accent)] border border-[var(--orange-accent)]/20">
                               #{n.public_id}
                             </span>
                           </div>
@@ -219,8 +229,18 @@ export default function VotePicker({
                   </div>
                 ))}
               </div>
+              {category.nominees.length > FIRST_NOMINEES && !expanded.has(category.id) && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((prev) => new Set(prev).add(category.id))}
+                    className="btn-outline px-6 py-2.5"
+                  >
+                    Show all {category.nominees.length} nominees
+                  </button>
+                </div>
+              )}
             </section>
-          </ScrollReveal>
         ))}
       </div>
 
