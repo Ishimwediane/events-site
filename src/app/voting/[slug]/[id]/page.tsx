@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import CampaignVoteView, { campaignMetadata, findNominee } from "@/components/CampaignVoteView";
-import { getCampaignByName, getPublicCampaign } from "@/lib/api";
+import { getCampaignByName, getPublicCampaign, renamedCampaignPath } from "@/lib/api";
 import { campaignPath } from "@/lib/slug";
 import { isEnabled } from "@/config/site";
 
@@ -47,6 +47,10 @@ export default async function NomineeOrLegacyPage({ params }: Props) {
     if (!nominee) permanentRedirect(campaignPath(campaign));
     return <CampaignVoteView campaign={campaign} openNomineeId={nominee.id} />;
   }
+
+  // A link shared before the campaign was renamed.
+  const renamed = await renamedCampaignPath(slug);
+  if (renamed) redirect(`${renamed}/${id}`);
 
   // The old /voting/<short-slug>/<public_id> form.
   const legacy = await getPublicCampaign(slug, id);

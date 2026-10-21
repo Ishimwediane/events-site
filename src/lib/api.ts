@@ -215,6 +215,20 @@ export async function getCampaignByName(name: string): Promise<PublicCampaign | 
   return getPublicCampaign(match.slug, String(match.public_id));
 }
 
+/**
+ * The address a link shared before a rename should go to now. Organisers add
+ * or drop an edition ("… 2026" → "… 2026-Edition 3"), so an old name that is
+ * the start of the new one — or the other way round — is the same campaign.
+ * null when no single campaign fits.
+ */
+export async function renamedCampaignPath(name: string): Promise<string | null> {
+  const old = `/voting/${name}`;
+  const fits = (await getCampaigns())
+    .map((c) => campaignPath(c))
+    .filter((path) => path.startsWith(`${old}-`) || old.startsWith(`${path}-`));
+  return fits.length === 1 ? fits[0] : null;
+}
+
 /* ── Ticket purchase (client-side) ───────────────────────────── */
 
 export type PurchaseInput = {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import CampaignVoteView, { campaignMetadata } from "@/components/CampaignVoteView";
-import { getCampaignByName } from "@/lib/api";
+import { getCampaignByName, renamedCampaignPath } from "@/lib/api";
 import { isEnabled } from "@/config/site";
 
 /**
@@ -26,7 +26,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CampaignVotePage({ params }: Props) {
   if (!isEnabled("voting")) notFound();
-  const campaign = await getCampaignByName((await params).slug);
-  if (!campaign) notFound();
+  const { slug } = await params;
+  const campaign = await getCampaignByName(slug);
+  if (!campaign) {
+    // A link shared before the campaign was renamed. Not permanent: the
+    // title can change again.
+    const renamed = await renamedCampaignPath(slug);
+    if (renamed) redirect(renamed);
+    notFound();
+  }
   return <CampaignVoteView campaign={campaign} />;
 }
