@@ -11,7 +11,7 @@ import ShareModal from "./ShareModal";
 import Windowed from "./Windowed";
 import { ussdVote, votingSlugs } from "@/lib/slug";
 import { brand } from "@/config/site";
-import { Shell, PayStep, FieldLabel, FormError, PayButton } from "./PaymentModal";
+import { Shell, PayStep, FieldLabel, FormError, PayButton, WarmPaymentPage } from "./PaymentModal";
 
 /** Shown until a nominee has a photo: the AGACIRO "Vote nominee / how to vote" poster. */
 const NOMINEE_FALLBACK = "/images/nominee-placeholder.jpg";
@@ -141,6 +141,7 @@ export default function VotePicker({
 
   return (
     <>
+      {canVote && <WarmPaymentPage />}
       <div className="space-y-10">
         {/* Each category is one card: title, count and share, then its nominees.
             Windowed unloads categories far off screen so memory stays flat. */}
