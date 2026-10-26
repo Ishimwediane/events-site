@@ -7,6 +7,7 @@ import { getImageUrl } from "@/platform/lib/images";
 import { errorText } from "@/platform/v2/format";
 import { RoleGate, useSession } from "@/platform/v2/Shell";
 import { Badge, Button, Card, Empty, ErrorNote, Field, NotBuilt, Notice, Page, Table, Td, inputClass } from "@/platform/v2/ui";
+import { AddDoorStaff, RemoveDoorStaff } from "@/platform/v2/org/DoorStaff";
 import { listOf, useLoad } from "@/platform/v2/useLoad";
 
 type Staff = { id: string; email: string; name: string; event_title: string };
@@ -137,20 +138,22 @@ function Team() {
   const { user } = useSession();
   const staff = useLoad(() => api.get("/dashboard/gate-staff/").then((r) => listOf<Staff>(r.data)));
   return (
-    <Card padded={false} title="Team" actions={<span className="text-[13px] text-[#5B6472]">To add or remove someone, contact Ozone Events · 0790 755 673</span>}>
-      <p className="m-0 px-[22px] text-[13px] text-[#5B6472]">Door staff can only scan tickets. They never see money.</p>
+    <Card padded={false} title="Team" actions={<AddDoorStaff onAdded={staff.reload} />}>
+      <p className="m-0 px-[22px] text-[13px] text-[#5B6472]">You can add door staff, who can only scan tickets and never see money. For any other account, contact Ozone Events · 0790 755 673.</p>
       {staff.error && <div className="px-[22px]"><ErrorNote>{staff.error}</ErrorNote></div>}
-      <Table head={["Person", "Can do", "Event"]} minWidth={560} empty={!staff.loading && (staff.data ?? []).length === 0 && <Empty>No door staff yet.</Empty>}>
+      <Table head={["Person", "Can do", "Event", ""]} minWidth={640} empty={!staff.loading && (staff.data ?? []).length === 0 && <Empty>No door staff yet.</Empty>}>
         <tr>
           <Td first className="font-semibold">{user.email}</Td>
           <Td><Badge tone="green">Owner · everything</Badge></Td>
-          <Td last className="text-[#5B6472]">All</Td>
+          <Td className="text-[#5B6472]">All</Td>
+          <Td last />
         </tr>
         {(staff.data ?? []).map((s) => (
           <tr key={s.id}>
             <Td first className="font-semibold">{s.name || s.email}{s.name && <><br /><span className="text-xs font-normal text-[#5B6472]">{s.email}</span></>}</Td>
             <Td><Badge>Door staff · scan tickets</Badge></Td>
-            <Td last className="text-[#374151]">{s.event_title}</Td>
+            <Td className="text-[#374151]">{s.event_title}</Td>
+            <Td last className="text-right"><RemoveDoorStaff id={s.id} who={s.email} onRemoved={staff.reload} /></Td>
           </tr>
         ))}
       </Table>

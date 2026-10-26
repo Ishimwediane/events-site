@@ -8,6 +8,7 @@ import { RoleGate } from "@/platform/v2/Shell";
 import {
   Badge, Bar, Button, Card, Empty, ErrorNote, Field, LinkButton, Loading, Notice, Page, Stat, StatGrid, Table, Td, inputClass,
 } from "@/platform/v2/ui";
+import { AddDoorStaff, RemoveDoorStaff } from "@/platform/v2/org/DoorStaff";
 import { listOf, useLoad } from "@/platform/v2/useLoad";
 
 type GateEvent = { id: string; title: string; location: string; start_date: string | null; status: string };
@@ -133,10 +134,10 @@ function Checkins() {
               {(staff.data ?? []).map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-2.5 p-3 border border-[#E5E7EB] rounded-xl">
                   <span className="text-sm font-semibold truncate">{p.name || p.email}<br /><span className="text-xs font-normal text-[#5B6472]">{p.email}</span></span>
-                  <Badge tone="green">Can scan</Badge>
+                  <RemoveDoorStaff id={p.id} who={p.email} onRemoved={staff.reload} />
                 </div>
               ))}
-              <Notice>Need more door staff? Contact Ozone Events · 0790 755 673</Notice>
+              <div><AddDoorStaff event={eventId} onAdded={staff.reload} /></div>
             </Card>
           </div>
 
