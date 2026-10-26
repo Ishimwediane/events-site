@@ -2,16 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-    AlertTriangle,
-    CheckCircle2,
-    KeyRound,
-    LogOut,
-    RefreshCw,
-    ScanLine,
-    X,
-    XCircle,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, KeyRound, LogOut, RefreshCw, XCircle } from "lucide-react";
 
 import QrScanner from "@/platform/components/QrScanner";
 import { authService } from "@/platform/services/auth.service";
@@ -25,6 +16,16 @@ import { signalAdmitted, signalRefused, unlockAudio } from "@/platform/lib/gateF
 
 const ROLES_THAT_SCAN = ["GATE_STAFF", "COMPANY", "ADMIN"];
 
+const REFUSED_TITLE: Record<string, string> = {
+    ALREADY_USED: "This ticket was already used",
+    WRONG_EVENT: "This ticket is for another event",
+    NOT_FOUND: "Unknown ticket code",
+};
+
+/**
+ * The door scanner: navy phone screens from the dashboard design. Choose the
+ * event → scan → green "Let them in" or full red "Stop" → next person.
+ */
 export default function ScanPage() {
     const router = useRouter();
 
@@ -116,48 +117,46 @@ export default function ScanPage() {
         const code = manualCode.trim();
         if (!code) return;
         unlockAudio();
+        setShowManual(false);
         await submitCode(code);
         setManualCode("");
     };
 
+    const signOut = () => {
+        authService.logout();
+    };
+
     if (checkingAuth) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+            <main className="flex min-h-screen items-center justify-center bg-[#08283B] text-[#C9D4DC]">
                 <RefreshCw className="h-6 w-6 animate-spin" />
             </main>
         );
     }
 
-    // ── event picker ──────────────────────────────────────────────────────
+    // ── 1 · choose the event ──────────────────────────────────────────────
     if (!event) {
         return (
-            <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
-                <div className="mx-auto max-w-md">
-                    <header className="mb-8 text-center">
-                        <ScanLine className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
-                        <h1 className="text-2xl font-semibold">Gate check-in</h1>
-                        <p className="mt-1 text-sm text-slate-400">
-                            Choose the event you are admitting for.
-                        </p>
-                    </header>
+            <main className="min-h-screen bg-[#08283B] font-body text-white">
+                <div className="mx-auto flex min-h-screen max-w-md flex-col gap-[18px] px-[18px] py-7">
+                    <Brand email={authService.getUserFromStorage()?.email ?? ""} />
+                    <h1 className="mt-2 font-heading text-[26px] font-bold leading-tight">Which event are you at?</h1>
+                    <p className="text-sm text-[#C9D4DC]">You only see events you were given access to.</p>
 
                     {loadError && (
-                        <p className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">
-                            {loadError}
-                        </p>
+                        <p className="rounded-xl bg-[#B42318]/25 p-3 text-sm text-white">{loadError}</p>
                     )}
 
                     {!loadError && events.length === 0 && (
-                        <div className="rounded-2xl bg-slate-900 p-6 text-center">
-                            <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-400" />
-                            <p className="text-sm text-slate-300">
-                                You are not assigned to any event yet. Ask the organizer to give your
-                                account gate access.
+                        <div className="rounded-2xl bg-[#0F3A52] p-6 text-center">
+                            <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-[#F7B84B]" />
+                            <p className="text-sm text-[#C9D4DC]">
+                                You are not assigned to any event yet.
                             </p>
                         </div>
                     )}
 
-                    <ul className="space-y-3">
+                    <ul className="flex flex-col gap-3">
                         {events.map((e) => (
                             <li key={e.id}>
                                 <button
@@ -165,41 +164,144 @@ export default function ScanPage() {
                                         unlockAudio();
                                         setEvent(e);
                                     }}
-                                    className="w-full rounded-2xl bg-slate-900 p-4 text-left transition hover:bg-slate-800"
+                                    className="flex w-full flex-col gap-1 rounded-2xl bg-[#0F3A52] p-4 text-left transition hover:bg-[#174A66]"
                                 >
-                                    <p className="font-medium">{e.title}</p>
-                                    <p className="mt-1 text-xs text-slate-400">
-                                        {e.location}
+                                    <span className="text-base font-bold">{e.title}</span>
+                                    <span className="text-[13px] text-[#C9D4DC]">
                                         {e.start_date
-                                            ? ` · ${new Date(e.start_date).toLocaleDateString()}`
+                                            ? new Date(e.start_date).toLocaleDateString("en-GB", {
+                                                  weekday: "short",
+                                                  day: "numeric",
+                                                  month: "short",
+                                              })
                                             : ""}
-                                    </p>
+                                        {e.location ? ` · ${e.location}` : ""}
+                                    </span>
                                 </button>
                             </li>
                         ))}
                     </ul>
 
+                    <div className="mt-auto flex flex-col gap-2.5 pt-6">
+                        <p className="text-center text-[13px] text-[#C9D4DC]">
+                            No event here? Ask the organiser to give your email door access.
+                        </p>
+                        <button
+                            onClick={signOut}
+                            className="flex items-center justify-center gap-2 rounded-xl border border-[#3B5B6E] py-3 text-sm font-semibold text-white"
+                        >
+                            <LogOut className="h-4 w-4" /> Sign out
+                        </button>
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
+    // ── 3 · Stop: full red screen ─────────────────────────────────────────
+    if (result && result.result !== "ADMITTED") {
+        return (
+            <main role="status" aria-live="assertive" className="min-h-screen bg-[#B42318] font-body text-white">
+                <div className="mx-auto flex min-h-screen max-w-md flex-col gap-4 px-[22px] pb-7 pt-16">
+                    <div className="mx-auto flex h-[88px] w-[88px] items-center justify-center rounded-full bg-white text-[#B42318]">
+                        <XCircle className="h-12 w-12" />
+                    </div>
+                    <h1 className="text-center font-heading text-[44px] font-bold leading-none">Stop</h1>
+                    <p className="text-center text-xl font-semibold">
+                        {REFUSED_TITLE[result.result] ?? "Do not let them in"}
+                    </p>
+                    <div className="flex flex-col gap-1.5 rounded-2xl bg-black/20 p-4 text-[15px]">
+                        <span>{result.message}</span>
+                        {result.result === "ALREADY_USED" && result.checked_in_at && (
+                            <span>
+                                First scanned at{" "}
+                                <b>
+                                    {new Date(result.checked_in_at).toLocaleTimeString("en-GB", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                </b>
+                                {result.checked_in_by ? (
+                                    <>
+                                        {" "}by <b>{result.checked_in_by}</b>
+                                    </>
+                                ) : null}
+                            </span>
+                        )}
+                        {result.ticket && (
+                            <span>
+                                {result.ticket.full_name || "Guest"} · {result.ticket.ticket_type}
+                                {result.ticket.is_hard ? " · printed ticket" : ""}
+                            </span>
+                        )}
+                        {result.ticket && <span className="font-mono text-xs opacity-80">{result.ticket.code}</span>}
+                    </div>
                     <button
-                        onClick={() => authService.logout()}
-                        className="mx-auto mt-8 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300"
+                        onClick={() => setResult(null)}
+                        className="mt-auto rounded-[14px] bg-white p-4 text-base font-bold text-[#7A1B12]"
                     >
-                        <LogOut className="h-3.5 w-3.5" /> Sign out
+                        Close and scan next
                     </button>
                 </div>
             </main>
         );
     }
 
-    // ── scanning ──────────────────────────────────────────────────────────
+    // ── 4 · type the code ────────────────────────────────────────────────
+    if (showManual) {
+        return (
+            <main className="min-h-screen bg-[#08283B] font-body text-white">
+                <form onSubmit={submitManual} className="mx-auto flex min-h-screen max-w-md flex-col gap-4 px-[18px] py-6">
+                    <button type="button" onClick={() => setShowManual(false)} className="self-start text-sm font-semibold text-[#F7B84B]">
+                        ← Back to camera
+                    </button>
+                    <h1 className="font-heading text-[26px] font-bold">Type the ticket code</h1>
+                    <p className="text-sm text-[#C9D4DC]">
+                        When the QR is torn or the phone screen is too dark. The code is printed under the QR.
+                    </p>
+                    <label htmlFor="manual-code" className="flex flex-col gap-2 text-[13px] font-semibold text-[#C9D4DC]">
+                        Ticket code
+                        <div className="flex items-center gap-2 rounded-[14px] bg-white px-3.5">
+                            <span className="text-lg font-semibold text-[#5B6472]">TICK-</span>
+                            <input
+                                id="manual-code"
+                                value={manualCode}
+                                onChange={(e) => setManualCode(e.target.value)}
+                                placeholder="XXXXXX"
+                                autoCapitalize="characters"
+                                autoComplete="off"
+                                autoFocus
+                                className="min-w-0 flex-1 border-0 bg-transparent py-4 text-xl font-semibold uppercase tracking-[0.08em] text-[#111827] outline-hidden"
+                            />
+                        </div>
+                    </label>
+                    <button
+                        type="submit"
+                        disabled={busy || !manualCode.trim()}
+                        className="rounded-[14px] bg-[#F39C12] p-4 text-base font-bold text-[#111827] disabled:opacity-50"
+                    >
+                        Check ticket
+                    </button>
+                    <div className="mt-2 flex flex-col gap-2 rounded-[14px] bg-[#0F3A52] p-3.5 text-[13px] text-[#C9D4DC]">
+                        <b className="text-white">What the colours mean</b>
+                        <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#10A35C]" />Green: let them in</span>
+                        <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#EF4444]" />Red: stop. Already used, other event or unknown code</span>
+                    </div>
+                </form>
+            </main>
+        );
+    }
+
+    // ── 2 · scanning ─────────────────────────────────────────────────────
     const admitted = result?.result === "ADMITTED";
 
     return (
-        <main className="min-h-screen bg-slate-950 pb-10 text-white">
-            <div className="mx-auto max-w-md px-4 py-5">
-                <header className="mb-4 flex items-start justify-between gap-3">
+        <main className="min-h-screen bg-[#08283B] font-body text-white">
+            <div className="mx-auto flex min-h-screen max-w-md flex-col gap-3.5 px-4 py-5">
+                <header className="flex items-center justify-between gap-2.5">
                     <div className="min-w-0">
-                        <h1 className="truncate text-lg font-semibold">{event.title}</h1>
-                        <p className="text-xs text-slate-400">{event.location}</p>
+                        <h1 className="truncate font-heading text-[17px] font-bold">{event.title}</h1>
+                        <p className="text-xs text-[#C9D4DC]">Door scanner</p>
                     </div>
                     {events.length > 1 && (
                         <button
@@ -207,7 +309,7 @@ export default function ScanPage() {
                                 setEvent(null);
                                 setResult(null);
                             }}
-                            className="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300"
+                            className="shrink-0 rounded-[10px] border border-[#3B5B6E] px-3 py-2 text-[13px] font-semibold"
                         >
                             Change
                         </button>
@@ -215,141 +317,81 @@ export default function ScanPage() {
                 </header>
 
                 {stats && (
-                    <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-                        <Stat label="Inside" value={stats.checked_in} tone="text-emerald-400" />
-                        <Stat label="Expected" value={stats.remaining} tone="text-slate-300" />
-                        <Stat label="Total sold" value={stats.total} tone="text-slate-300" />
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        <Stat label="Inside" value={stats.checked_in} tone="text-[#6EE7B7]" />
+                        <Stat label="Expected" value={stats.remaining} tone="text-white" />
+                        <Stat label="Tickets" value={stats.total} tone="text-white" />
                     </div>
                 )}
 
-                <div className="relative">
-                    <QrScanner onDecode={submitCode} paused={busy || result !== null} />
+                <QrScanner onDecode={submitCode} paused={busy || result !== null} />
+                {!admitted && (
+                    <p className="text-center text-[13px] text-[#C9D4DC]">Point the camera at the QR code</p>
+                )}
 
-                    {result && (
-                        <div
-                            role="status"
-                            aria-live="assertive"
-                            className={`absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl p-6 text-center ${
-                                admitted ? "bg-emerald-600" : "bg-red-600"
-                            }`}
-                        >
-                            {admitted ? (
-                                <CheckCircle2 className="h-16 w-16" />
-                            ) : (
-                                <XCircle className="h-16 w-16" />
-                            )}
-                            <p className="text-2xl font-bold uppercase tracking-wide">
-                                {admitted ? "Let them in" : "Stop"}
-                            </p>
-                            <p className="text-sm font-medium">{result.message}</p>
-
-                            {result.ticket && (
-                                <div className="mt-1 space-y-0.5 text-sm">
-                                    <p className="font-semibold">
-                                        {result.ticket.full_name || "Guest"}
-                                    </p>
-                                    <p className="opacity-90">
-                                        {result.ticket.ticket_type}
-                                        {result.ticket.is_hard ? " · physical ticket" : ""}
-                                    </p>
-                                    <p className="font-mono text-xs opacity-75">
-                                        {result.ticket.code}
-                                    </p>
-                                </div>
-                            )}
-
-                            {result.result === "ALREADY_USED" && result.checked_in_at && (
-                                <p className="mt-1 text-xs opacity-90">
-                                    First scanned{" "}
-                                    {new Date(result.checked_in_at).toLocaleTimeString()}
-                                    {result.checked_in_by ? ` by ${result.checked_in_by}` : ""}
-                                </p>
-                            )}
-
-                            <button
-                                onClick={() => setResult(null)}
-                                className="mt-4 w-full max-w-[16rem] rounded-xl bg-black/30 px-5 py-3 text-base font-semibold transition active:bg-black/45"
-                            >
-                                Close
-                            </button>
-                            <p className="text-[11px] opacity-75">
-                                Scanning is paused until you close this.
-                            </p>
-
-                            {/* Second way out, for a thumb already up at the corner. */}
-                            <button
-                                onClick={() => setResult(null)}
-                                aria-label="Close result"
-                                className="absolute right-2 top-2 rounded-full bg-black/25 p-2.5 transition active:bg-black/45"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
+                {admitted && result && (
+                    <div role="status" aria-live="assertive" className="flex flex-col gap-1 rounded-[18px] bg-[#0E9F6E] p-4">
+                        <div className="flex items-center gap-2 font-heading text-2xl font-bold">
+                            <CheckCircle2 className="h-6 w-6" /> Let them in
                         </div>
-                    )}
-                </div>
-
-                <p className="mt-3 text-center text-xs text-slate-500">
-                    Hold the ticket&apos;s QR code inside the frame.
-                </p>
-
-                {/* Manual entry: creased tickets, cracked phone screens, dead camera. */}
-                <div className="mt-6">
-                    {showManual ? (
-                        <form onSubmit={submitManual} className="space-y-2">
-                            <label
-                                htmlFor="manual-code"
-                                className="block text-xs font-medium text-slate-400"
-                            >
-                                Type the code printed on the ticket
-                            </label>
-                            <div className="flex gap-2">
-                                <input
-                                    id="manual-code"
-                                    value={manualCode}
-                                    onChange={(e) => setManualCode(e.target.value)}
-                                    placeholder="TICK-1A2B3C4D"
-                                    autoCapitalize="characters"
-                                    autoComplete="off"
-                                    className="flex-1 rounded-lg bg-slate-900 px-3 py-2.5 font-mono text-sm uppercase outline-hidden ring-1 ring-slate-700 focus:ring-emerald-500"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={busy || !manualCode.trim()}
-                                    className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium disabled:opacity-40"
-                                >
-                                    Check
-                                </button>
+                        {result.ticket ? (
+                            <div className="text-sm">
+                                {result.ticket.full_name || "Guest"} · {result.ticket.ticket_type}
+                                {result.ticket.is_hard ? " · printed ticket" : ""}
                             </div>
-                            <p className="text-xs text-slate-500">
-                                The <span className="font-mono">TICK-</span> prefix is optional.
-                            </p>
-                        </form>
-                    ) : (
+                        ) : (
+                            <div className="text-sm">{result.message}</div>
+                        )}
                         <button
-                            onClick={() => setShowManual(true)}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 py-3 text-sm text-slate-300 hover:bg-slate-800"
+                            onClick={() => setResult(null)}
+                            className="mt-2 rounded-xl bg-white p-3 text-[15px] font-bold text-[#064E3B]"
                         >
-                            <KeyRound className="h-4 w-4" /> Enter code by hand
+                            Next person
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
 
-                <button
-                    onClick={() => authService.logout()}
-                    className="mx-auto mt-8 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300"
-                >
-                    <LogOut className="h-3.5 w-3.5" /> Sign out
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        onClick={() => setShowManual(true)}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-[#3B5B6E] p-3 text-sm font-semibold"
+                    >
+                        <KeyRound className="h-4 w-4" /> Type the code
+                    </button>
+                    <button
+                        onClick={signOut}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-[#3B5B6E] p-3 text-sm font-semibold"
+                    >
+                        <LogOut className="h-4 w-4" /> Sign out
+                    </button>
+                </div>
+                <p className="text-center text-xs text-[#C9D4DC]/80">
+                    Torch: tap the lightning button on the camera (when the phone supports it).
+                </p>
             </div>
         </main>
     );
 }
 
+function Brand({ email }: { email: string }) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F39C12] font-heading text-lg font-bold text-[#08283B]">
+                O
+            </div>
+            <div className="min-w-0">
+                <div className="font-heading text-[17px] font-bold">Door scanner</div>
+                <div className="truncate text-xs text-[#C9D4DC]">{email ? `Signed in as ${email}` : "Ozone Events"}</div>
+            </div>
+        </div>
+    );
+}
+
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
     return (
-        <div className="rounded-xl bg-slate-900 py-2.5">
-            <p className={`text-xl font-semibold ${tone}`}>{value}</p>
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+        <div className="rounded-xl bg-[#0F3A52] py-2.5">
+            <p className={`font-heading text-[22px] font-bold tabular-nums ${tone}`}>{value}</p>
+            <p className="text-[11px] text-[#C9D4DC]">{label}</p>
         </div>
     );
 }

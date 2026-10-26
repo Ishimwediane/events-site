@@ -1,327 +1,154 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import {
-    LayoutDashboard, Calendar, Ticket, TrendingUp,
-    Users, Plus, Settings, LogOut, Bell,
-    ChevronRight, BarChart3, Loader2, Menu, X,
-    Sparkles, ArrowUpRight,
-} from "lucide-react";
-import { companyService } from "@/platform/services/company.service";
-import { authService } from "@/platform/services/auth.service";
+import { useEffect } from "react";
+
+import { campaignPath } from "@/lib/slug";
 import { api } from "@/platform/lib/api";
-import CreateEventModal from "@/platform/components/CreateEventModal";
+import { day, methodLabel, rwf, rwfLabel, when } from "@/platform/v2/format";
+import { isLive, type Campaign, type Earnings } from "@/platform/v2/org/types";
+import { useSession } from "@/platform/v2/Shell";
+import { Badge, Bar, Card, Empty, ErrorNote, LinkButton, Loading, Page, Stat, StatGrid, Table, Td } from "@/platform/v2/ui";
+import { listOf, useLoad } from "@/platform/v2/useLoad";
 
-export default function DashboardPage() {
-    const [stats, setStats] = useState<any>(null);
-    const [events, setEvents] = useState<any[]>([]);
-    const [campaigns, setCampaigns] = useState<any[]>([]);
-    const [dataType, setDataType] = useState<"events" | "voting" | "both">("both");
-    const [isLoading, setIsLoading] = useState(true);
-    const [user, setUser] = useState<any>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const router = useRouter();
+/** The last seven days, oldest first, as YYYY-MM-DD in Kigali. */
+const lastWeek = () =>
+  Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - (6 - i) * 86400000);
+    return d.toLocaleDateString("en-CA", { timeZone: "Africa/Kigali" });
+  });
 
-    const fetchDashboardData = async (userData: any) => {
-        try {
-            // 1. Fetch High-Level Financial Stats (Revenue, Tickets, Votes) from the new consolidated endpoint
-            const statsRes = await api.get("/payments/stats/");
-            setStats(statsRes.data);
-
-            // 2. Fetch specific list data for the tables based on authorization
-            if (userData.role === "COMPANY") {
-                const auth = (userData.authorization || "").toUpperCase().trim();
-                
-                if (auth === "VOTING" || auth === "BOTH") {
-                    const res = await api.get("/voting/campaigns/mine/");
-                    setCampaigns(res.data.results || res.data);
-                }
-                
-                if (auth === "EVENTS" || auth === "BOTH") {
-                    const companyEvents = await companyService.getMyEvents();
-                    setEvents(companyEvents.results || companyEvents);
-                }
-                
-                setDataType(auth === "VOTING" ? "voting" : auth === "EVENTS" ? "events" : "both");
-            }
-        } catch (err) {
-            console.error("Dashboard fetch failed", err);
-        }
+function Overview() {
+  const { company } = useSession();
+  const { data, error, loading } = useLoad(async () => {
+    const days = lastWeek();
+    const [earnings, campaigns, ...daily] = await Promise.all([
+      api.get<Earnings>("/payments/earnings/").then((r) => r.data),
+      api.get("/voting/campaigns/mine/").then((r) => listOf<Campaign>(r.data)).catch(() => [] as Campaign[]),
+      ...days.map((d) => api.get<Earnings>(`/payments/earnings/?from=${d}&to=${d}`).then((r) => Number(r.data.totals.gross))),
+    ]);
+    // The campaign list carries no nominees; load the full live campaign for votes and leaders.
+    const pick = campaigns.find((c) => isLive(c.status)) ?? campaigns[0];
+    const full = pick
+      ? await api.get<Campaign>(`/voting/campaigns/${pick.id}/`).then((r) => r.data).catch(() => pick)
+      : undefined;
+    return {
+      earnings,
+      campaigns: full ? campaigns.map((c) => (c.id === full.id ? full : c)) : campaigns,
+      days: days.map((d, i) => ({ date: d, gross: daily[i] as number })),
     };
+  });
 
-    useEffect(() => {
-        const init = async () => {
-            try {
-                const userData = authService.getUserFromStorage();
-                if (!userData || (userData.role !== "COMPANY" && userData.role !== "ADMIN")) {
-                    router.push("/login"); return;
-                }
+  if (loading) return <Loading />;
+  if (error || !data) return <Page title="Overview"><ErrorNote>{error}</ErrorNote></Page>;
 
-                if (userData.role === "ADMIN") {
-                    router.push("/dashboard/admin");
-                    return;
-                }
+  const { earnings, campaigns, days } = data;
+  const live = campaigns.find((c) => isLive(c.status)) ?? campaigns[0];
+  const nominees = (live?.categories ?? []).flatMap((c) => c.nominees.map((n) => ({ ...n, category: c.name })));
+  const votes = nominees.reduce((s, n) => s + (n.votes || 0), 0);
+  const handVotes = nominees.reduce((s, n) => s + (n.manual_votes || 0), 0);
+  const leaders = [...nominees].sort((a, b) => b.votes - a.votes).slice(0, 5);
+  const top = Math.max(1, leaders[0]?.votes ?? 1);
+  const maxDay = Math.max(1, ...days.map((d) => d.gross));
+  const greet = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
 
-                // Fetch company profile to get authorization
-                if (userData.role === "COMPANY") {
-                    try {
-                        const profile = await api.get("/companies/profile/me/");
-                        userData.authorization = (profile.data.authorization || "BOTH").toUpperCase().trim();
-                    } catch {
-                        userData.authorization = "BOTH"; // Default to BOTH to match model default if fetch fails
-                    }
-                }
+  return (
+    <Page
+      title={`${greet}, ${company?.name ?? ""}`}
+      subtitle="Here is how your events and voting are doing."
+      actions={
+        live && (
+          <>
+            <Badge tone={isLive(live.status) ? "green" : "gray"}>
+              {isLive(live.status) ? "Voting open" : "Voting closed"}
+              {live.end_date ? ` · closes ${day(live.end_date)}` : ""}
+            </Badge>
+            <a
+              href={campaignPath(live)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center px-4 py-2.5 rounded-[10px] bg-[#08283B] text-white text-sm font-semibold no-underline hover:bg-[#0F3A52]"
+            >
+              Open public page
+            </a>
+          </>
+        )
+      }
+    >
+      <StatGrid min={220}>
+        <Stat dark label="Money received" value={rwf(earnings.totals.gross)} unit="RWF" note={`${earnings.totals.transactions} payments`} />
+        <Stat
+          label="Your revenue"
+          value={rwf(earnings.totals.host)}
+          unit="RWF"
+          tone="green"
+          note={`After Weflexfy ${earnings.shares.gateway}% and platform ${earnings.shares.developer}%`}
+        />
+        <Stat label="Votes cast" value={votes.toLocaleString("en-GB")} note={live ? `${handVotes.toLocaleString("en-GB")} added by hand` : "No campaign yet"} />
+        <Stat label="Tickets sold online" value={earnings.totals.tickets.toLocaleString("en-GB")} />
+      </StatGrid>
 
-                setUser(userData);
-                await fetchDashboardData(userData);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        init();
-    }, [router]);
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))" }}>
+        <Card title="Money in, last 7 days" actions={<span className="text-[13px] text-[#5B6472]">RWF</span>}>
+          <div className="flex items-end gap-3 h-[200px] pt-2 border-b border-[#E5E7EB]">
+            {days.map((d, i) => (
+              <div key={d.date} className="flex-1 flex flex-col items-center justify-end gap-1.5 h-full">
+                <span className="text-xs font-semibold text-[#08283B] tabular-nums">{rwf(d.gross)}</span>
+                <div
+                  className="w-full max-w-[44px] rounded-t-lg"
+                  style={{
+                    height: `${Math.max(4, Math.round((d.gross / maxDay) * 150))}px`,
+                    background: i === days.length - 1 ? "#F39C12" : d.gross ? "#08283B" : "#E5E7EB",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            {days.map((d) => (
+              <span key={d.date} className="flex-1 text-center text-xs text-[#5B6472]">
+                {new Date(`${d.date}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+              </span>
+            ))}
+          </div>
+        </Card>
 
-    if (isLoading) return null; // Let parent layout handle loading or show minimal
-
-    const eventStatCards = [
-        { label: "Total Events", value: stats?.total_events ?? 0, icon: Calendar, bg: "#F39C12", change: "+12%" },
-        { label: "Tickets Sold", value: stats?.total_tickets ?? 0, icon: Ticket, bg: "#08283B", change: "+8%" },
-    ];
-
-    const votingStatCards = [
-        { label: "Total Campaigns", value: stats?.total_campaigns ?? 0, icon: BarChart3, bg: "#F39C12", change: "+15%" },
-        { label: "Total Votes", value: stats?.total_votes ?? 0, icon: Users, bg: "#08283B", change: "+24%" },
-    ];
-
-    const ticketRevenueCard = { 
-        label: "Ticket Revenue", 
-        value: `${Number(stats?.ticket_revenue ?? 0).toLocaleString()} RWF`, 
-        icon: TrendingUp, 
-        bg: "#1e8a5e", 
-        change: "Live" 
-    };
-
-    const votingRevenueCard = { 
-        label: "Voting Revenue", 
-        value: `${Number(stats?.voting_revenue ?? 0).toLocaleString()} RWF`, 
-        icon: TrendingUp, 
-        bg: "#F39C12", 
-        change: "Live" 
-    };
-
-    const customersCard = { label: "Engagement", value: stats?.activeUsers ?? "85%", icon: Sparkles, bg: "#6c4ef2", change: "+10%" };
-
-    const currentCards = dataType === "voting" 
-        ? [...votingStatCards, votingRevenueCard, customersCard]
-        : dataType === "events" 
-            ? [...eventStatCards, ticketRevenueCard, { ...customersCard, label: "Customers", value: stats?.activeUsers ?? 0 }]
-            : [
-                eventStatCards[0], eventStatCards[1], 
-                votingStatCards[0], votingStatCards[1], 
-                ticketRevenueCard, votingRevenueCard
-              ];
-
-    return (
-        <div className="flex flex-col min-h-screen w-full">
-
-            {/* Top bar */}
-            <header className="sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10 py-4 bg-white border-b border-gray-100 gap-4">
-
-                {/* Left — title + subtitle */}
-                <div className="shrink-0 min-w-[180px]">
-                    <h1 className="text-lg font-bold text-gray-800 leading-tight">Dashboard</h1>
-                    <p className="text-xs text-gray-400">
-                        Hello {user?.first_name || "there"}, welcome back!
-                    </p>
-                </div>
-
-                {/* Center — search */}
-                <div className="flex-1 max-w-md mx-auto">
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search anything"
-                            className="w-full pl-5 pr-12 py-2.5 rounded-full text-sm bg-gray-100 border-0 focus:outline-hidden focus:ring-2 text-gray-700 placeholder:text-gray-400"
-                            style={{ focusRingColor: "#F39C12" } as any}
-                        />
-                        <button className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <circle cx="11" cy="11" r="8" strokeWidth="2" />
-                                <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Right — actions + user */}
-                <div className="flex items-center gap-3 shrink-0">
-
-                    {/* User */}
-                    <div className="flex items-center gap-3 pl-2 border-l border-gray-100">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-black shrink-0" style={{ background: "#F39C12" }}>
-                            {user?.first_name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "U"}
-                        </div>
-                        <div className="hidden sm:block">
-                            <p className="text-sm font-bold text-gray-800 leading-tight">{user?.first_name || "User"} {user?.last_name || ""}</p>
-                            <p className="text-[10px] text-gray-400 capitalize">{user?.role?.toLowerCase() || "company"}</p>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Page body */}
-            <div className="flex-1 px-6 lg:px-10 py-8">
-
-                {/* Welcome strip */}
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl px-8 py-6 mb-8 flex items-center justify-between overflow-hidden relative"
-                    style={{ background: "#08283B" }}
-                >
-                    <div
-                        className="absolute right-0 top-0 w-64 h-full pointer-events-none"
-                        style={{ background: "radial-gradient(circle at right, rgba(243,156,18,0.12) 0%, transparent 70%)" }}
-                    />
-                    <div>
-                        <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#F39C12" }}>Welcome back</p>
-                        <h2 className="text-xl font-bold text-white">
-                            {user?.first_name ? `Hello, ${user.first_name} 👋` : "Good to have you back 👋"}
-                        </h2>
-                        <p className="text-white/40 text-sm mt-1">Here's what's happening with your {dataType === 'voting' ? 'campaigns' : 'events'} today.</p>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2 shrink-0">
-                        {(dataType === "events" || dataType === "both") && (
-                            <Link href="/events"
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white/60 border border-white/10 hover:border-white/30 transition-all">
-                                View Public Events <ArrowUpRight className="w-3 h-3" />
-                            </Link>
-                        )}
-                    </div>
-                </motion.div>
-
-                {/* Stat cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                    {currentCards.map((card, i) => (
-                        <motion.div
-                            key={card.label}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.08 }}
-                            className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: card.bg + "18" }}>
-                                    <card.icon className="w-5 h-5" style={{ color: card.bg }} />
-                                </div>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#1e8a5e18", color: "#1e8a5e" }}>
-                                    {card.change}
-                                </span>
-                            </div>
-                            <p className="text-xs font-semibold text-gray-400 mb-1">{card.label}</p>
-                            <p className="text-2xl font-bold text-gray-800">{card.value}</p>
-                        </motion.div>
-                    ))}
-                </div>
-
-                <div className={`grid gap-6 ${dataType === 'both' ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
-                    {/* Events Table */}
-                    {(dataType === "events" || dataType === "both") && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.35 }}
-                            className="bg-white rounded-2xl border border-gray-100 overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
-                                <h3 className="text-sm font-bold text-gray-800">Your Active Events</h3>
-                                <button className="text-xs font-bold" style={{ color: "#F39C12" }}>View All →</button>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50/50 border-b border-gray-100">
-                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Event Name</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {events.length === 0 ? (
-                                            <tr><td colSpan={2} className="px-6 py-8 text-center text-gray-400 text-sm">No events found</td></tr>
-                                        ) : (
-                                            events.slice(0, 5).map(event => (
-                                                <tr key={event.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/events/${event.id}`)}>
-                                                    <td className="px-6 py-4">
-                                                        <p className="font-semibold text-gray-800 text-sm">{event.title}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${event.status === "ACTIVE" || event.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                                                            {event.status || "DRAFT"}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* Campaigns Table */}
-                    {(dataType === "voting" || dataType === "both") && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.35 }}
-                            className="bg-white rounded-2xl border border-gray-100 overflow-hidden"
-                        >
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
-                                <h3 className="text-sm font-bold text-gray-800">Your Active Campaigns</h3>
-                                <button className="text-xs font-bold" style={{ color: "#F39C12" }}>View All →</button>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50/50 border-b border-gray-100">
-                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Campaign Name</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {campaigns.length === 0 ? (
-                                            <tr><td colSpan={2} className="px-6 py-8 text-center text-gray-400 text-sm">No campaigns found</td></tr>
-                                        ) : (
-                                            campaigns.slice(0, 5).map(campaign => (
-                                                <tr key={campaign.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/voting/${campaign.id}`)}>
-                                                    <td className="px-6 py-4">
-                                                        <p className="font-semibold text-gray-800 text-sm">{campaign.title}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${campaign.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                                                            {campaign.status || "DRAFT"}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.div>
-                    )}
-                </div>
+        <Card title="Leading nominees" actions={live && <LinkButton small kind="ghost" href={`/dashboard/voting/${live.id}`}>See all</LinkButton>}>
+          {leaders.length === 0 && <Empty>No votes yet.</Empty>}
+          {leaders.map((n) => (
+            <div key={n.id} className="flex flex-col gap-1.5">
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate"><b>{n.name}</b> <span className="text-[#5B6472]">· {n.category}</span></span>
+                <span className="font-semibold text-[#08283B] tabular-nums">{n.votes.toLocaleString("en-GB")}</span>
+              </div>
+              <Bar pct={(n.votes / top) * 100} />
             </div>
-            <CreateEventModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={() => user && fetchDashboardData(user)}
-            />
-        </div>
-    );
+          ))}
+        </Card>
+      </div>
+
+      <Card padded={false} title="Latest payments" actions={<LinkButton small kind="ghost" href="/dashboard/money">All money</LinkButton>}>
+        <Table head={["When", "For", "Paid by", "Amount"]} minWidth={620} empty={earnings.transactions.length === 0 && <Empty>No payments yet.</Empty>}>
+          {earnings.transactions.slice(0, 8).map((t) => (
+            <tr key={t.ref}>
+              <Td first className="text-[#5B6472] whitespace-nowrap">{when(t.date)}</Td>
+              <Td>{t.service === "VOTE" ? "Vote" : "Ticket"} · {t.title}</Td>
+              <Td><Badge>{methodLabel[t.method] ?? t.method}</Badge></Td>
+              <Td last className="text-right font-semibold tabular-nums">{rwfLabel(t.gross)}</Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+    </Page>
+  );
+}
+
+export default function DashboardHome() {
+  const { user } = useSession();
+  const router = useRouter();
+  useEffect(() => {
+    if (user.role === "ADMIN") router.replace("/dashboard/admin");
+    else if (user.role === "DEVELOPER") router.replace("/dashboard/dev");
+  }, [user.role, router]);
+  return user.role === "COMPANY" ? <Overview /> : <Loading />;
 }

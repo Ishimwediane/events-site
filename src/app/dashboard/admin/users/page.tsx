@@ -1,329 +1,244 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { api } from "@/platform/lib/api";
-import { authService } from "@/platform/services/auth.service";
-import { Search, Edit2, Trash2, Users, Shield, RefreshCw, ShieldCheck, Mail, Calendar as CalendarIcon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { fetchAll, ROLE_LABEL, type AdminUser, type GateAssignment } from "@/platform/v2/admin/data";
+import { day, errorText, num } from "@/platform/v2/format";
+import { RoleGate, useSession } from "@/platform/v2/Shell";
+import {
+  Badge, Button, Card, Empty, ErrorNote, Field, inputClass, Loading, Modal, NotBuilt, Page, Stat, StatGrid, Table, Td,
+} from "@/platform/v2/ui";
+import { useLoad } from "@/platform/v2/useLoad";
 
-export default function AdminUsersPage() {
-    const [users, setUsers] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
+export default function UsersPage() {
+  return (
+    <RoleGate roles={["ADMIN"]}>
+      <Users />
+    </RoleGate>
+  );
+}
 
-    // Modal state
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<any>(null);
-    const [newRole, setNewRole] = useState<string>("");
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState("");
-    const [adminUser, setAdminUser] = useState<any>(null);
+type EventOption = { id: string; title: string; organizer_name: string; status: string };
+type Form = { email: string; password: string; first_name: string; last_name: string; role: string; is_active: boolean };
+const EMPTY: Form = { email: "", password: "", first_name: "", last_name: "", role: "GATE_STAFF", is_active: true };
 
-    const router = useRouter();
+const ROLE_TONE: Record<string, "amber" | "green" | "blue" | "gray" | "navy"> = {
+  ADMIN: "amber", COMPANY: "green", GATE_STAFF: "blue", DEVELOPER: "navy", CUSTOMER: "gray",
+};
 
-    useEffect(() => {
-        const userData = authService.getUserFromStorage();
-        if (!userData) { router.push("/login"); return; }
-        if (userData.role !== "ADMIN") { router.push("/dashboard"); return; }
-        setAdminUser(userData);
-        fetchUsers();
-    }, [router]);
+function Users() {
+  const { user: me } = useSession();
+  const { data, error, loading, reload } = useLoad(async () => {
+    const [users, gate, events] = await Promise.all([
+      fetchAll<AdminUser>("/users/"),
+      api.get<GateAssignment[]>("/dashboard/gate-staff/").then((r) => r.data),
+      fetchAll<EventOption>("/events/?page_size=100"),
+    ]);
+    return { users, gate, events };
+  });
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("");
+  const [editing, setEditing] = useState<AdminUser | "new" | null>(null);
+  const [form, setForm] = useState<Form>(EMPTY);
+  const [addEvent, setAddEvent] = useState("");
+  const [busy, setBusy] = useState("");
+  const [formError, setFormError] = useState("");
+  const [actionError, setActionError] = useState("");
 
-    const fetchUsers = async () => {
-        setIsLoading(true);
-        try {
-            const res = await api.get("/users/");
-            // API may return a paginated object ({ results: [...] }) or a plain array.
-            setUsers(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
-        } catch (err) {
-            console.error("Failed to fetch users:", err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const open = (u: AdminUser | "new") => {
+    setEditing(u);
+    setFormError("");
+    setAddEvent("");
+    setForm(u === "new" ? EMPTY : { ...EMPTY, email: u.email, first_name: u.first_name, last_name: u.last_name, role: u.role, is_active: u.is_active });
+  };
 
-    const handleEditClick = (user: any) => {
-        setEditingUser(user);
-        setNewRole(user.role);
-        setIsEditModalOpen(true);
-        setError("");
-    };
-
-    const handleSaveUser = async () => {
-        if (!editingUser) return;
-        setIsSaving(true);
-        setError("");
-        try {
-            await api.patch(`/users/${editingUser.id}/`, {
-                first_name: editingUser.first_name,
-                last_name: editingUser.last_name,
-                email: editingUser.email,
-                role: newRole,
-            });
-            await fetchUsers();
-            setIsEditModalOpen(false);
-        } catch (err) {
-            console.error("Failed to update user", err);
-            setError("Failed to update user. Please ensure the email is valid and not already in use.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDeleteUser = async (id: string) => {
-        if (id === adminUser?.id) {
-            alert("You cannot delete your own admin account.");
-            return;
-        }
-        if (!confirm("Are you sure you want to delete this user? This will permanently remove all associated data.")) return;
-        try {
-            await api.delete(`/users/${id}/`);
-            await fetchUsers();
-        } catch (err) {
-            console.error("Failed to delete user", err);
-            alert("Failed to delete user.");
-        }
-    };
-
-    const filteredUsers = users.filter(u =>
-        u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (isLoading && users.length === 0) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F39C12]"></div>
-            </div>
-        );
+  const run = async (key: string, fn: () => Promise<unknown>, onError: (m: string) => void) => {
+    setBusy(key);
+    onError("");
+    try {
+      await fn();
+      await reload();
+      return true;
+    } catch (e) {
+      onError(errorText(e));
+      return false;
+    } finally {
+      setBusy("");
     }
+  };
 
-    return (
+  const save = async () => {
+    const ok = await run("save", async () => {
+      if (editing === "new") {
+        await api.post("/users/", {
+          email: form.email, password: form.password, first_name: form.first_name, last_name: form.last_name, role: form.role,
+        });
+      } else if (editing) {
+        await api.patch(`/users/${editing.id}/`, {
+          first_name: form.first_name, last_name: form.last_name, role: form.role, is_active: form.is_active,
+        });
+      }
+    }, setFormError);
+    if (ok) setEditing(null);
+  };
+
+  if (loading) return <Loading />;
+  if (error || !data) return <Page title="Users"><ErrorNote>{error}</ErrorNote></Page>;
+
+  const count = (r: string) => data.users.filter((u) => u.role === r).length;
+  const q = search.trim().toLowerCase();
+  const users = data.users.filter((u) => (!role || u.role === role) && (!q || `${u.email} ${u.first_name} ${u.last_name}`.toLowerCase().includes(q)));
+  const doorOf = (email: string) => data.gate.filter((g) => g.email.toLowerCase() === email.toLowerCase());
+  const editingUser = editing && editing !== "new" ? editing : null;
+  const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
+
+  return (
+    <Page
+      title="Users"
+      subtitle="Everyone who can log in, and what they are allowed to do."
+      actions={
         <>
-            <header className="sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10 py-4 bg-white border-b border-gray-100">
-                <div>
-                    <h1 className="text-lg font-bold text-gray-800 leading-tight">User Management</h1>
-                    <p className="text-xs text-gray-400">View and manage all registered users</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={fetchUsers} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">
-                        <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                    </button>
-                    <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-bold uppercase">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Admin
-                    </span>
-                </div>
-            </header>
-
-            <div className="p-6 lg:p-10 max-w-7xl mx-auto w-full">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-800">System Users</h2>
-                        <p className="text-sm text-gray-500 mt-1">Manage accounts, roles and platform access for all users.</p>
-                    </div>
-                    <div className="relative w-full md:w-72">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#F39C12] focus:border-transparent transition-all"
-                        />
-                    </div>
-                </div>
-
-                <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-xs">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">User</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Email</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Joined</th>
-                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 bg-gray-50/30">
-                                            <Users className="w-8 h-8 mx-auto mb-3 text-gray-300" />
-                                            <p className="text-sm font-semibold">No users found</p>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredUsers.map((u: any) => (
-                                        <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center font-bold text-[#F39C12] border border-gray-200 shrink-0">
-                                                        {u.first_name?.[0] ?? u.email?.[0]?.toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-gray-800 text-sm">
-                                                            {u.first_name} {u.last_name}
-                                                        </p>
-                                                        {u.id === adminUser?.id && (
-                                                            <span className="text-[9px] font-bold text-[#F39C12] uppercase tracking-tighter">You</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                    <Mail className="w-3.5 h-3.5 text-gray-300" />
-                                                    {u.email}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                    u.role === 'ADMIN' ? 'bg-red-100 text-red-700' :
-                                                    u.role === 'COMPANY' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-gray-100 text-gray-600'
-                                                }`}>
-                                                    {u.role}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 text-xs text-gray-400">
-                                                    <CalendarIcon className="w-3.5 h-3.5" />
-                                                    {new Date(u.date_joined).toLocaleDateString()}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleEditClick(u)}
-                                                        className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-amber-50 hover:text-amber-600 transition-colors border border-gray-200"
-                                                        title="Edit User"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteUser(u.id)}
-                                                        disabled={u.id === adminUser?.id}
-                                                        className={`p-2 bg-gray-50 rounded-lg transition-colors border border-gray-200 ${
-                                                            u.id === adminUser?.id ? 'opacity-30 cursor-not-allowed' : 'text-red-400 hover:bg-red-50 hover:text-red-600'
-                                                        }`}
-                                                        title="Delete User"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {/* Edit User Modal */}
-            <AnimatePresence>
-                {isEditModalOpen && editingUser && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-xl"
-                        >
-                            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-gray-800">Edit User Profile</h3>
-                                <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-4">
-                                {error && (
-                                    <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl font-bold">
-                                        {error}
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold uppercase text-gray-400 block">First Name</label>
-                                        <input
-                                            type="text"
-                                            value={editingUser.first_name || ""}
-                                            onChange={e => setEditingUser({ ...editingUser, first_name: e.target.value })}
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-hidden focus:border-[#F39C12] transition-all"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold uppercase text-gray-400 block">Last Name</label>
-                                        <input
-                                            type="text"
-                                            value={editingUser.last_name || ""}
-                                            onChange={e => setEditingUser({ ...editingUser, last_name: e.target.value })}
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-hidden focus:border-[#F39C12] transition-all"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase text-gray-400 block">Email Address</label>
-                                    <input
-                                        type="email"
-                                        value={editingUser.email || ""}
-                                        onChange={e => setEditingUser({ ...editingUser, email: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:border-[#F39C12] transition-all"
-                                    />
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-100">
-                                    <label className="text-[10px] font-bold uppercase text-gray-400 mb-3 block">User Role</label>
-                                    <div className="space-y-2">
-                                        {['CUSTOMER', 'COMPANY', 'ADMIN'].map((role) => (
-                                            <label 
-                                                key={role}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${newRole === role ? 'border-[#F39C12] bg-orange-50/50' : 'border-gray-50 hover:border-gray-100'}`}
-                                            >
-                                                <input 
-                                                    type="radio" 
-                                                    className="mt-0.5" 
-                                                    name="role" 
-                                                    value={role} 
-                                                    checked={newRole === role} 
-                                                    onChange={() => setNewRole(role)} 
-                                                />
-                                                <span className="font-bold text-xs uppercase">{role}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                                <button
-                                    onClick={() => setIsEditModalOpen(false)}
-                                    className="px-5 py-2.5 font-bold text-sm text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveUser}
-                                    disabled={isSaving}
-                                    className="px-6 py-2.5 font-bold text-sm text-[#08283B] rounded-xl shadow-lg transition-all disabled:opacity-50"
-                                    style={{ background: "#F39C12" }}
-                                >
-                                    {isSaving ? "Saving..." : "Save Changes"}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+          <Field label="Search">
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name or email" className={`${inputClass} min-w-[220px]`} />
+          </Field>
+          <Field label="Role">
+            <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="">Everyone</option>
+              {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Button kind="primary" onClick={() => open("new")}>+ Add user</Button>
         </>
-    );
+      }
+    >
+      <StatGrid min={170}>
+        <Stat label="Everyone" value={num(data.users.length)} />
+        <Stat label="Admins" value={count("ADMIN")} />
+        <Stat label="Clients" value={count("COMPANY")} />
+        <Stat label="Door staff" value={count("GATE_STAFF")} />
+        <Stat label="Developers" value={count("DEVELOPER")} />
+      </StatGrid>
+
+      {actionError && <ErrorNote>{actionError}</ErrorNote>}
+
+      <Card padded={false}>
+        <Table head={["User", "Role", "Door access", "Joined", "Action"]} minWidth={820}>
+          {users.map((u) => {
+            const door = doorOf(u.email);
+            return (
+              <tr key={u.id}>
+                <Td first>
+                  <b className="break-all">{u.email}</b>
+                  {(u.first_name || u.last_name) && <><br /><span className="text-xs text-[#5B6472]">{u.first_name} {u.last_name}</span></>}
+                </Td>
+                <Td>
+                  <span className="inline-flex flex-wrap gap-1.5">
+                    <Badge tone={ROLE_TONE[u.role] || "gray"}>{ROLE_LABEL[u.role] || u.role}</Badge>
+                    {!u.is_active && <Badge tone="red">Paused</Badge>}
+                  </span>
+                </Td>
+                <Td className="text-[13px] text-[#374151]">
+                  {u.role === "GATE_STAFF" ? (door.length ? door.map((d) => d.event_title).join(", ") : <span className="text-[#B86E00]">No event yet</span>) : "—"}
+                </Td>
+                <Td className="text-[#5B6472] whitespace-nowrap">{day(u.date_joined)}</Td>
+                <Td last className="text-right whitespace-nowrap">
+                  <span className="inline-flex gap-1.5">
+                    <Button small onClick={() => open(u)}>Edit</Button>
+                    {u.id !== me.id && (
+                      <Button
+                        small
+                        kind="danger"
+                        busy={busy === `del-${u.id}`}
+                        onClick={() => {
+                          if (!window.confirm(`Delete ${u.email}? This cannot be undone. To stop them logging in for now, pause them instead (Edit).`)) return;
+                          run(`del-${u.id}`, () => api.delete(`/users/${u.id}/`), setActionError);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </span>
+                </Td>
+              </tr>
+            );
+          })}
+        </Table>
+        {!users.length && <Empty>No users match.</Empty>}
+      </Card>
+
+      <NotBuilt>Sending a password reset email. Set a new first password when you add someone, and they can change it in Settings.</NotBuilt>
+
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editingUser ? `Edit ${editingUser.email}` : "Add a user"}
+        footer={
+          <>
+            <Button onClick={() => setEditing(null)}>Cancel</Button>
+            <Button kind="primary" busy={busy === "save"} onClick={save}>{editingUser ? "Save" : "Create user"}</Button>
+          </>
+        }
+      >
+        {!editingUser && (
+          <>
+            <Field label="Email">
+              <input type="email" className={inputClass} value={form.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@example.com" />
+            </Field>
+            <Field label="First password" hint="At least 8 characters. Share it privately; they can change it in Settings.">
+              <input type="text" autoComplete="new-password" className={inputClass} value={form.password} onChange={(e) => set({ password: e.target.value })} />
+            </Field>
+          </>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name"><input className={inputClass} value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} /></Field>
+          <Field label="Last name"><input className={inputClass} value={form.last_name} onChange={(e) => set({ last_name: e.target.value })} /></Field>
+        </div>
+        <Field label="Role" hint={form.role === "COMPANY" && !editingUser ? "To add a client with their organisation, use Clients → + Add client instead." : undefined}>
+          <select className={inputClass} value={form.role} onChange={(e) => set({ role: e.target.value })} disabled={editingUser?.id === me.id}>
+            <option value="GATE_STAFF">Door staff (scan tickets only)</option>
+            <option value="COMPANY">Client (organiser)</option>
+            <option value="ADMIN">Admin (Ozone Events)</option>
+            <option value="DEVELOPER">Developer (Vexta Ltd)</option>
+            <option value="CUSTOMER">Customer</option>
+          </select>
+        </Field>
+        {editingUser && editingUser.id !== me.id && (
+          <label className="flex gap-2 items-center text-sm">
+            <input type="checkbox" checked={!form.is_active} onChange={(e) => set({ is_active: !e.target.checked })} className="w-[18px] h-[18px]" /> Paused (cannot log in)
+          </label>
+        )}
+
+        {editingUser?.role === "GATE_STAFF" && (
+          <div className="flex flex-col gap-2.5 pt-2 border-t border-[#F1F2F4]">
+            <span className="text-[13px] font-semibold text-[#374151]">Events they can scan</span>
+            {doorOf(editingUser.email).map((g) => (
+              <div key={g.id} className="flex items-center justify-between gap-2 px-3 py-2 border border-[#E5E7EB] rounded-xl text-sm">
+                <span>{g.event_title}</span>
+                <Button small kind="danger" busy={busy === `gd-${g.id}`} onClick={() => run(`gd-${g.id}`, () => api.delete(`/dashboard/gate-staff/${g.id}/`), setFormError)}>Remove</Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <select aria-label="Event to add" className={inputClass} value={addEvent} onChange={(e) => setAddEvent(e.target.value)}>
+                <option value="">Choose an event…</option>
+                {data.events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title} · {ev.organizer_name}</option>)}
+              </select>
+              <Button
+                kind="dark"
+                disabled={!addEvent}
+                busy={busy === "ga"}
+                onClick={() => run("ga", () => api.post("/dashboard/gate-staff/", { event: addEvent, email: editingUser.email }), setFormError).then((ok) => ok && setAddEvent(""))}
+              >
+                Give access
+              </Button>
+            </div>
+          </div>
+        )}
+        {!editingUser && form.role === "GATE_STAFF" && (
+          <p className="m-0 text-[13px] text-[#5B6472]">After creating them, open Edit to choose which events they can scan.</p>
+        )}
+        {formError && <ErrorNote>{formError}</ErrorNote>}
+      </Modal>
+    </Page>
+  );
 }

@@ -1,338 +1,185 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import {
-    Loader2, User, Building, Mail,
-    Save, Upload, Image as ImageIcon, Bell, Menu
-} from "lucide-react";
-import { authService } from "@/platform/services/auth.service";
-import { companyService } from "@/platform/services/company.service";
-import DashboardSidebar from "@/platform/components/DashboardSidebar";
+import { useState } from "react";
+
+import { api } from "@/platform/lib/api";
 import { getImageUrl } from "@/platform/lib/images";
+import { errorText } from "@/platform/v2/format";
+import { RoleGate, useSession } from "@/platform/v2/Shell";
+import { Badge, Button, Card, Empty, ErrorNote, Field, NotBuilt, Notice, Page, Table, Td, inputClass } from "@/platform/v2/ui";
+import { listOf, useLoad } from "@/platform/v2/useLoad";
+
+type Staff = { id: string; email: string; name: string; event_title: string };
+
+const Saved = ({ text }: { text: string }) => (text ? <p className="m-0 text-sm font-semibold text-[#0B6B43]">{text}</p> : null);
+
+function Organisation() {
+  const { company, refreshCompany } = useSession();
+  const [name, setName] = useState(company?.name ?? "");
+  const [description, setDescription] = useState(company?.description ?? "");
+  const [logo, setLogo] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
+
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    try {
+      const data = new FormData();
+      data.append("name", name);
+      data.append("description", description);
+      if (logo) data.append("logo", logo);
+      await api.patch("/companies/profile/me/", data, { headers: { "Content-Type": "multipart/form-data" } });
+      await refreshCompany();
+      setSaved("Saved.");
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const preview = logo ? URL.createObjectURL(logo) : company?.logo ? getImageUrl(company.logo) : null;
+  return (
+    <Card title="Organisation">
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <div className="flex flex-wrap items-center gap-5">
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={preview} alt="" className="w-[72px] h-[72px] rounded-2xl object-cover" />
+        ) : (
+          <div className="w-[72px] h-[72px] rounded-2xl bg-[#08283B] text-[#F39C12] flex items-center justify-center font-heading text-3xl font-bold">{(name[0] || "O").toUpperCase()}</div>
+        )}
+        <label className="px-3.5 py-2 rounded-[10px] border border-[#D1D5DB] bg-white text-sm font-semibold text-[#08283B] cursor-pointer hover:bg-[#F4F5F7]">
+          Upload logo
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => setLogo(e.target.files?.[0] ?? null)} />
+        </label>
+      </div>
+      <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <Field label="Organisation name"><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Login email" hint="Ask Ozone Events to change it."><input className={inputClass} value={(company as { email?: string } | null)?.email ?? ""} disabled /></Field>
+      </div>
+      <Field label="About your organisation"><textarea rows={3} className={`${inputClass} resize-y`} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      <div className="flex items-center gap-3">
+        <Button kind="primary" busy={busy} onClick={save} disabled={!name.trim()}>Save changes</Button>
+        <Saved text={saved} />
+      </div>
+    </Card>
+  );
+}
+
+function YourName() {
+  const { user } = useSession();
+  const [first, setFirst] = useState(user.first_name ?? "");
+  const [last, setLast] = useState(user.last_name ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    try {
+      await api.patch("/users/me/", { first_name: first, last_name: last });
+      setSaved("Saved.");
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title="Your name">
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First name"><input className={inputClass} value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
+        <Field label="Last name"><input className={inputClass} value={last} onChange={(e) => setLast(e.target.value)} /></Field>
+      </div>
+      <div className="flex items-center gap-3"><Button busy={busy} onClick={save}>Save name</Button><Saved text={saved} /></div>
+    </Card>
+  );
+}
+
+function Password() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    setSaved("");
+    try {
+      await api.post("/dashboard/password/", { current_password: current, new_password: next });
+      setCurrent("");
+      setNext("");
+      setSaved("Password changed.");
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title="Password">
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <Field label="Current password"><input type="password" autoComplete="current-password" className={inputClass} value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
+      <Field label="New password" hint="At least 8 characters, not too common."><input type="password" autoComplete="new-password" className={inputClass} value={next} onChange={(e) => setNext(e.target.value)} /></Field>
+      <div className="flex items-center gap-3"><Button busy={busy} onClick={save} disabled={!current || next.length < 8}>Change password</Button><Saved text={saved} /></div>
+    </Card>
+  );
+}
+
+function Team() {
+  const { user } = useSession();
+  const staff = useLoad(() => api.get("/dashboard/gate-staff/").then((r) => listOf<Staff>(r.data)));
+  return (
+    <Card padded={false} title="Team" actions={<span className="text-[13px] text-[#5B6472]">To add or remove someone, contact Ozone Events · 0790 755 673</span>}>
+      <p className="m-0 px-[22px] text-[13px] text-[#5B6472]">Door staff can only scan tickets. They never see money.</p>
+      {staff.error && <div className="px-[22px]"><ErrorNote>{staff.error}</ErrorNote></div>}
+      <Table head={["Person", "Can do", "Event"]} minWidth={560} empty={!staff.loading && (staff.data ?? []).length === 0 && <Empty>No door staff yet.</Empty>}>
+        <tr>
+          <Td first className="font-semibold">{user.email}</Td>
+          <Td><Badge tone="green">Owner · everything</Badge></Td>
+          <Td last className="text-[#5B6472]">All</Td>
+        </tr>
+        {(staff.data ?? []).map((s) => (
+          <tr key={s.id}>
+            <Td first className="font-semibold">{s.name || s.email}{s.name && <><br /><span className="text-xs font-normal text-[#5B6472]">{s.email}</span></>}</Td>
+            <Td><Badge>Door staff · scan tickets</Badge></Td>
+            <Td last className="text-[#374151]">{s.event_title}</Td>
+          </tr>
+        ))}
+      </Table>
+    </Card>
+  );
+}
+
+function Settings() {
+  return (
+    <Page title="Settings" subtitle="Your organisation, your login and the people who can sign in.">
+      <div className="flex flex-col gap-5 max-w-[1100px]">
+        <Organisation />
+        <Card title="Where your money goes">
+          <NotBuilt>Each client&apos;s payout MoMo number isn&apos;t stored in the system yet; payments are paid out to the number Ozone Events set up. Contact Ozone Events to check or change it.</NotBuilt>
+        </Card>
+        <Team />
+        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <YourName />
+          <Password />
+        </div>
+        <Card title="Emails to me">
+          <NotBuilt>Choosing which emails you get (daily summary, each payment) isn&apos;t built yet.</NotBuilt>
+        </Card>
+        <Notice>Need help? Call Ozone Events on 0790 755 673.</Notice>
+      </div>
+    </Page>
+  );
+}
 
 export default function SettingsPage() {
-    const router = useRouter();
-    const [user, setUser] = useState<any>(null);
-    const [company, setCompany] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    // Personal Form State
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [isSavingPersonal, setIsSavingPersonal] = useState(false);
-    const [personalSuccess, setPersonalSuccess] = useState(false);
-
-    // Company Form State
-    const [companyName, setCompanyName] = useState("");
-    const [companyDescription, setCompanyDescription] = useState("");
-    const [logoFile, setLogoFile] = useState<File | null>(null);
-    const [logoPreview, setLogoPreview] = useState<string | null>(null);
-    const [isSavingCompany, setIsSavingCompany] = useState(false);
-    const [companySuccess, setCompanySuccess] = useState(false);
-
-    // File Input Ref
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const init = async () => {
-            const userData = authService.getUserFromStorage();
-            if (!userData) { router.push("/login"); return; }
-            setUser(userData);
-
-            // Set initial personal state
-            setFirstName(userData.first_name || "");
-            setLastName(userData.last_name || "");
-
-            if (userData.role === "COMPANY") {
-                try {
-                    const companyProfile = await companyService.getMyCompanyProfile();
-                    setCompany(companyProfile);
-                    setCompanyName(companyProfile.name || "");
-                    setCompanyDescription(companyProfile.description || "");
-                    if (companyProfile.logo) {
-                        setLogoPreview(getImageUrl(companyProfile.logo));
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch company profile", error);
-                }
-            }
-            setIsLoading(false);
-        };
-        init();
-    }, [router]);
-
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setLogoFile(file);
-            setLogoPreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleSavePersonal = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSavingPersonal(true);
-        setPersonalSuccess(false);
-
-        try {
-            await authService.updateProfile({
-                first_name: firstName,
-                last_name: lastName
-            });
-            // Update local state to reflect what's stored
-            const updatedUser = authService.getUserFromStorage();
-            setUser(updatedUser);
-            setPersonalSuccess(true);
-            setTimeout(() => setPersonalSuccess(false), 3000);
-        } catch (error) {
-            console.error("Failed to update personal details", error);
-        } finally {
-            setIsSavingPersonal(false);
-        }
-    };
-
-    const handleSaveCompany = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSavingCompany(true);
-        setCompanySuccess(false);
-
-        try {
-            const formData = new FormData();
-            formData.append('name', companyName);
-            formData.append('description', companyDescription);
-            if (logoFile) {
-                formData.append('logo', logoFile);
-            }
-
-            const updatedProfile = await companyService.updateMyCompanyProfile(formData);
-            setCompany(updatedProfile);
-            setCompanySuccess(true);
-            setTimeout(() => setCompanySuccess(false), 3000);
-        } catch (error) {
-            console.error("Failed to update company details", error);
-        } finally {
-            setIsSavingCompany(false);
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <Loader2 className="w-10 h-10 animate-spin" style={{ color: "#F39C12" }} />
-                <span className="text-sm font-bold uppercase tracking-widest text-gray-400">Loading Settings…</span>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col min-h-screen w-full font-sans text-gray-800">
-            {/* Top bar */}
-            <header className="sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10 py-4 bg-white border-b border-gray-100 gap-4 shadow-xs">
-                <div className="flex items-center gap-4 shrink-0">
-                    <button className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100" onClick={() => setSidebarOpen(true)}>
-                        <Menu className="w-5 h-5 text-gray-500" />
-                    </button>
-                    <div>
-                        <h1 className="text-lg font-bold text-gray-800 leading-tight">Settings</h1>
-                        <p className="text-xs text-gray-400">Manage your profile and company branding</p>
-                    </div>
-                </div>
-
-                {/* Right */}
-                <div className="flex items-center gap-3 shrink-0 ml-auto">
-                    <div className="flex items-center gap-3 pl-2 border-l border-gray-100">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-black shrink-0" style={{ background: "#F39C12" }}>
-                            {user?.first_name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "U"}
-                        </div>
-                        <div className="hidden sm:block">
-                            <p className="text-sm font-bold text-gray-800 leading-tight">{user?.first_name || "User"} {user?.last_name || ""}</p>
-                            <p className="text-[10px] text-gray-400 capitalize">{user?.role?.toLowerCase()}</p>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <div className="p-6 lg:p-10 max-w-4xl mx-auto w-full space-y-8 mt-4">
-
-                {/* PERSONAL SETTINGS */}
-                <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
-                    <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-base font-bold text-gray-900">Personal Information</h2>
-                            <p className="text-xs text-gray-500 mt-0.5">Update your own name and contact details.</p>
-                        </div>
-                    </div>
-                    <form onSubmit={handleSavePersonal} className="p-6 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">First Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-semibold text-sm"
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    placeholder="John"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Last Name</label>
-                                <input
-                                    type="text"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-semibold text-sm"
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    placeholder="Doe"
-                                />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Email Address</label>
-                                <div className="relative">
-                                    <input
-                                        type="email"
-                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 font-semibold text-sm cursor-not-allowed"
-                                        value={user?.email || ""}
-                                        disabled
-                                    />
-                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                </div>
-                                <p className="text-[11px] text-gray-400 font-medium">Your email address cannot be changed right now.</p>
-                            </div>
-                        </div>
-
-                        <div className="pt-2 flex items-center justify-between">
-                            {personalSuccess ? (
-                                <span className="text-sm font-bold text-green-600 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
-                                    Saved successfully!
-                                </span>
-                            ) : <div />}
-
-                            <button
-                                type="submit"
-                                disabled={isSavingPersonal}
-                                className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {isSavingPersonal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                Save Changes
-                            </button>
-                        </div>
-                    </form>
-                </section>
-
-                {/* COMPANY SETTINGS (Appears ONLY for Company Role) */}
-                {user?.role === "COMPANY" && company && (
-                    <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
-                        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                                <Building className="w-4 h-4 text-amber-600" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-bold text-gray-900">Company Profile</h2>
-                                <p className="text-xs text-gray-500 mt-0.5">Customize your brand presence on the platform.</p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleSaveCompany} className="p-6 space-y-8">
-
-                            {/* Logo upload */}
-                            <div className="space-y-4">
-                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Company Logo</label>
-                                <div className="flex items-start gap-6">
-                                    <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-                                        {logoPreview ? (
-                                            <img src={logoPreview} alt="Logo preview" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <ImageIcon className="w-8 h-8 text-gray-300" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 space-y-3 pt-2">
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            ref={fileInputRef}
-                                            onChange={handleLogoChange}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
-                                        >
-                                            <Upload className="w-4 h-4" />
-                                            Upload New Logo
-                                        </button>
-                                        <p className="text-[11px] text-gray-400 font-medium">
-                                            We recommend a 1:1 square image. JPG, PNG, or GIF. Max 5MB.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Company Name</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-semibold text-sm"
-                                            value={companyName}
-                                            onChange={(e) => setCompanyName(e.target.value)}
-                                            placeholder="Your Brand Name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Brand Slug</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">@</span>
-                                            <input
-                                                type="text"
-                                                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-mono text-sm"
-                                                value={company?.slug || ""}
-                                                onChange={(e) => setCompany({ ...company, slug: e.target.value })}
-                                                placeholder="brand-slug"
-                                            />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 font-medium">Changing this will update your public profile URL.</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Brand Description</label>
-                                    <textarea
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium text-sm min-h-[120px] resize-y"
-                                        value={companyDescription}
-                                        onChange={(e) => setCompanyDescription(e.target.value)}
-                                        placeholder="Tell attendees a little bit about what your company does and what kinds of events you host..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-2 flex items-center justify-between border-t border-gray-100 mt-6">
-                                {companySuccess ? (
-                                    <span className="text-sm font-bold text-amber-600 flex items-center gap-2 mt-4">
-                                        <div className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></div>
-                                        Profile updated successfully!
-                                    </span>
-                                ) : <div className="mt-4" />}
-
-                                <button
-                                    type="submit"
-                                    disabled={isSavingCompany}
-                                    className="mt-4 px-6 py-2.5 bg-[#F39C12] hover:bg-[#B9770E] text-black text-sm font-extrabold rounded-xl transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-xs"
-                                >
-                                    {isSavingCompany ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : <Save className="w-4 h-4" />}
-                                    Update Public Profile
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-                )}
-
-            </div>
-        </div>
-    );
+  return <RoleGate roles={["COMPANY"]}><Settings /></RoleGate>;
 }

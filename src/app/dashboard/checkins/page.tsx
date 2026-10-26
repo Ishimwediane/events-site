@@ -1,410 +1,202 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { api } from "@/platform/lib/api";
+import { day, downloadCsv, errorText, when } from "@/platform/v2/format";
+import { RoleGate } from "@/platform/v2/Shell";
 import {
-    AlertTriangle,
-    CheckCircle2,
-    Download,
-    RefreshCw,
-    RotateCcw,
-    ScanLine,
-    Search,
-    XCircle,
-} from "lucide-react";
+  Badge, Bar, Button, Card, Empty, ErrorNote, Field, LinkButton, Loading, Notice, Page, Stat, StatGrid, Table, Td, inputClass,
+} from "@/platform/v2/ui";
+import { listOf, useLoad } from "@/platform/v2/useLoad";
 
-import {
-    gateService,
-    type GateEvent,
-    type GateReport,
-    type ReportScan,
-} from "@/platform/services/gate.service";
-
-/** Refresh cadence while a gate is running. Slow enough not to hammer the API. */
-const POLL_MS = 15000;
-
-const RESULT_META: Record<string, { label: string; className: string }> = {
-    ADMITTED: { label: "Admitted", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-    ALREADY_USED: { label: "Already used", className: "bg-red-50 text-red-700 ring-red-200" },
-    WRONG_EVENT: { label: "Wrong event", className: "bg-amber-50 text-amber-700 ring-amber-200" },
-    NOT_FOUND: { label: "Unknown code", className: "bg-slate-100 text-slate-600 ring-slate-200" },
-    UNDONE: { label: "Check-in reversed", className: "bg-sky-50 text-sky-700 ring-sky-200" },
+type GateEvent = { id: string; title: string; location: string; start_date: string | null; status: string };
+type Scan = {
+  id: string; code: string; result: string; full_name: string; email: string; ticket_type: string;
+  is_hard: boolean; scanned_by: string; created_at: string;
 };
+type Report = {
+  event: { id: string; title: string };
+  stats: { total: number; checked_in: number; remaining: number };
+  tiers: { name: string; total: number; checked_in: number; remaining: number }[];
+  result_counts: Record<string, number>;
+  total_scans: number;
+  scans: Scan[];
+};
+type Staff = { id: string; email: string; name: string };
 
-const FILTERS = [
-    { key: "", label: "All" },
-    { key: "ADMITTED", label: "Admitted" },
-    { key: "ALREADY_USED", label: "Duplicates" },
-    { key: "WRONG_EVENT", label: "Wrong event" },
-    { key: "NOT_FOUND", label: "Unknown" },
-];
+const RESULT: Record<string, { label: string; tone: "green" | "red" | "amber" | "gray" | "blue" }> = {
+  ADMITTED: { label: "Let in", tone: "green" },
+  ALREADY_USED: { label: "Already used", tone: "red" },
+  WRONG_EVENT: { label: "Other event", tone: "amber" },
+  NOT_FOUND: { label: "Unknown code", tone: "gray" },
+  UNDONE: { label: "Check-in undone", tone: "blue" },
+};
+const FILTERS = ["", "ADMITTED", "ALREADY_USED", "WRONG_EVENT", "NOT_FOUND"];
 
-export default function CheckInsPage() {
-    const [events, setEvents] = useState<GateEvent[]>([]);
-    const [eventId, setEventId] = useState("");
-    const [report, setReport] = useState<GateReport | null>(null);
-    const [filter, setFilter] = useState("");
-    const [query, setQuery] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [undoing, setUndoing] = useState("");
+function Checkins() {
+  const events = useLoad(() => api.get("/tickets/gate/events/").then((r) => listOf<GateEvent>(r.data)));
+  const [picked, setEventId] = useState("");
+  // Until one is picked, the most recent event.
+  const eventId = picked || events.data?.[0]?.id || "";
+  const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
+  const [undoing, setUndoing] = useState("");
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const list = await gateService.getEvents();
-                setEvents(list);
-                if (list.length) setEventId(list[0].id);
-                else setLoading(false);
-            } catch {
-                setError("Could not load your events.");
-                setLoading(false);
+  const report = useLoad(
+    () => (eventId ? api.get<Report>(`/tickets/gate/report/?event_id=${eventId}&limit=300`).then((r) => r.data) : Promise.resolve(null)),
+    [eventId],
+  );
+  const reloadReport = report.reload;
+  const staff = useLoad(
+    () => (eventId ? api.get(`/dashboard/gate-staff/?event=${eventId}`).then((r) => listOf<Staff>(r.data)) : Promise.resolve([] as Staff[])),
+    [eventId],
+  );
+
+  // Live: refresh the numbers every 15 seconds while the page is open.
+  useEffect(() => {
+    if (!eventId) return;
+    const t = setInterval(() => reloadReport(), 15000);
+    return () => clearInterval(t);
+  }, [eventId, reloadReport]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (report.data?.scans ?? []).filter(
+      (s) => (!filter || s.result === filter) && (!q || [s.full_name, s.email, s.code].some((v) => (v || "").toLowerCase().includes(q))),
+    );
+  }, [report.data, filter, search]);
+
+  const undo = async (s: Scan) => {
+    if (!window.confirm(`Undo the check-in of ${s.full_name || s.code}? They will be able to scan in again.`)) return;
+    setUndoing(s.id);
+    setError("");
+    try {
+      await api.post("/tickets/gate/undo/", { event_id: eventId, code: s.code });
+      await report.reload();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setUndoing("");
+    }
+  };
+
+  if (events.loading) return <Loading />;
+  const list = events.data ?? [];
+  const r = report.data;
+  const pct = r && r.stats.total ? Math.round((r.stats.checked_in / r.stats.total) * 100) : 0;
+
+  return (
+    <Page
+      title="Door check-ins"
+      subtitle="Who is inside, live. Updates every 15 seconds."
+      actions={
+        <>
+          {list.length > 1 && (
+            <Field label={<span className="text-xs text-[#5B6472]">Event</span>}>
+              <select className={inputClass} value={eventId} onChange={(e) => setEventId(e.target.value)}>
+                {list.map((e) => <option key={e.id} value={e.id}>{e.title}{e.start_date ? ` · ${day(e.start_date)}` : ""}</option>)}
+              </select>
+            </Field>
+          )}
+          <Button onClick={() => report.reload()}>Refresh</Button>
+          <LinkButton kind="primary" href="/scan">Open scanner</LinkButton>
+        </>
+      }
+    >
+      {(events.error || report.error || error) && <ErrorNote>{events.error || report.error || error}</ErrorNote>}
+      {list.length === 0 && <Notice>No events to check in yet. Events appear here once they have tickets.</Notice>}
+
+      {r && (
+        <>
+          <StatGrid>
+            <Stat dark label="Inside now" value={r.stats.checked_in} note={`${pct}% of tickets arrived`} />
+            <Stat label="Not arrived" value={r.stats.remaining} />
+            <Stat label="Tickets out" value={r.stats.total} />
+            <Stat label="Tried twice" value={r.result_counts.ALREADY_USED ?? 0} tone={(r.result_counts.ALREADY_USED ?? 0) > 0 ? "red" : undefined} note="Ticket already used" />
+          </StatGrid>
+
+          <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))" }}>
+            <Card title="Arrivals by ticket type">
+              {r.tiers.length === 0 && <Empty>No tickets yet.</Empty>}
+              {r.tiers.map((t) => (
+                <div key={t.name} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-sm"><b>{t.name}</b><span className="tabular-nums text-[#374151]">{t.checked_in} of {t.total}</span></div>
+                  <Bar pct={t.total ? (t.checked_in / t.total) * 100 : 0} color="#08283B" />
+                </div>
+              ))}
+            </Card>
+            <Card title="Door staff">
+              <p className="m-0 text-[13px] text-[#5B6472]">They log in on their phone and can only scan tickets for this event.</p>
+              {(staff.data ?? []).length === 0 && <p className="m-0 text-sm text-[#5B6472]">Nobody has scanner access for this event yet.</p>}
+              {(staff.data ?? []).map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-2.5 p-3 border border-[#E5E7EB] rounded-xl">
+                  <span className="text-sm font-semibold truncate">{p.name || p.email}<br /><span className="text-xs font-normal text-[#5B6472]">{p.email}</span></span>
+                  <Badge tone="green">Can scan</Badge>
+                </div>
+              ))}
+              <Notice>Need more door staff? Contact Ozone Events · 0790 755 673</Notice>
+            </Card>
+          </div>
+
+          <Card
+            padded={false}
+            title="Every scan"
+            actions={
+              <>
+                <input type="search" aria-label="Search scans" placeholder="Name, email or code" className={`${inputClass} min-w-[220px]`} value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Button
+                  onClick={() =>
+                    downloadCsv("door-scans.csv", ["Time", "Result", "Code", "Name", "Email", "Ticket", "Printed", "Scanned by"],
+                      visible.map((s) => [when(s.created_at), RESULT[s.result]?.label ?? s.result, s.code, s.full_name, s.email, s.ticket_type, s.is_hard ? "yes" : "no", s.scanned_by]))
+                  }
+                >
+                  Download CSV
+                </Button>
+              </>
             }
-        })();
-    }, []);
-
-    const load = useCallback(
-        async (opts: { quiet?: boolean } = {}) => {
-            if (!eventId) return;
-            if (!opts.quiet) setLoading(true);
-            try {
-                setReport(await gateService.getReport(eventId, { result: filter, limit: 300 }));
-                setError("");
-            } catch (err: unknown) {
-                const code = (err as { response?: { status?: number } })?.response?.status;
-                setError(
-                    code === 403
-                        ? "You do not have permission to view check-in records for this event."
-                        : "Could not load check-in records."
+          >
+            <div role="group" aria-label="Show" className="flex flex-wrap gap-2 px-[22px]">
+              {FILTERS.map((f) => {
+                const n = f ? r.result_counts[f] ?? 0 : r.total_scans;
+                return (
+                  <button
+                    key={f || "all"}
+                    type="button"
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1.5 rounded-full text-[13px] font-semibold border ${filter === f ? "bg-[#08283B] border-[#08283B] text-white" : "bg-white border-[#D1D5DB] text-[#374151] hover:bg-[#F4F5F7]"}`}
+                  >
+                    {f ? RESULT[f].label : "All"} · {n}
+                  </button>
                 );
-            } finally {
-                setLoading(false);
-            }
-        },
-        [eventId, filter]
-    );
-
-    useEffect(() => {
-        void load();
-    }, [load]);
-
-    // Keep the numbers current during a live gate without a manual refresh.
-    useEffect(() => {
-        if (!eventId) return;
-        const t = setInterval(() => void load({ quiet: true }), POLL_MS);
-        return () => clearInterval(t);
-    }, [eventId, load]);
-
-    const undo = async (scan: ReportScan) => {
-        if (!report) return;
-        const ok = window.confirm(
-            `Reverse the check-in for ${scan.full_name || scan.code}?\n\n` +
-            `The ticket becomes valid again and can be scanned at the gate.`
-        );
-        if (!ok) return;
-        setUndoing(scan.code);
-        try {
-            await gateService.undo(report.event.id, scan.code);
-            await load({ quiet: true });
-        } catch (err: unknown) {
-            const detail = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-            window.alert(detail || "Could not reverse that check-in.");
-        } finally {
-            setUndoing("");
-        }
-    };
-
-    const exportCsv = () => {
-        if (!report) return;
-        const header = ["time", "result", "code", "name", "email", "tier", "physical", "scanned_by"];
-        const rows = visible.map((s) => [
-            new Date(s.created_at).toISOString(),
-            s.result,
-            s.code,
-            s.full_name,
-            s.email,
-            s.ticket_type,
-            s.is_hard ? "yes" : "no",
-            s.scanned_by,
-        ]);
-        // Quote every field: names and emails can contain commas.
-        const csv = [header, ...rows]
-            .map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))
-            .join("\n");
-        const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `checkins-${report.event.title.replace(/[^\w]+/g, "-").toLowerCase()}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const needle = query.trim().toLowerCase();
-    const visible = (report?.scans ?? []).filter((s) =>
-        !needle ||
-        s.code.toLowerCase().includes(needle) ||
-        s.full_name.toLowerCase().includes(needle) ||
-        s.email.toLowerCase().includes(needle)
-    );
-
-    const pct = report && report.stats.total
-        ? Math.round((report.stats.checked_in / report.stats.total) * 100)
-        : 0;
-
-    return (
-        <div className="space-y-6 p-4 sm:p-6">
-            <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-semibold text-slate-900">
-                        <ScanLine className="h-6 w-6 text-emerald-600" /> Gate check-ins
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Every scan at the door, admitted or refused. Updates automatically.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {events.length > 1 && (
-                        <select
-                            value={eventId}
-                            onChange={(e) => setEventId(e.target.value)}
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-                            {events.map((e) => (
-                                <option key={e.id} value={e.id}>{e.title}</option>
-                            ))}
-                        </select>
-                    )}
-                    <button
-                        onClick={() => void load()}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-                    </button>
-                    <button
-                        onClick={exportCsv}
-                        disabled={!visible.length}
-                        className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-40"
-                    >
-                        <Download className="h-4 w-4" /> CSV
-                    </button>
-                </div>
-            </header>
-
-            {error && (
-                <p className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200">
-                    <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
-                </p>
-            )}
-
-            {!error && !events.length && !loading && (
-                <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-                    No events yet, so there is nothing to check in.
-                </p>
-            )}
-
-            {report && (
-                <>
-                    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <Card label="Inside now" value={report.stats.checked_in} accent="text-emerald-600">
-                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                <div
-                                    className="h-full rounded-full bg-emerald-500 transition-all"
-                                    style={{ width: `${pct}%` }}
-                                />
-                            </div>
-                            <p className="mt-1 text-xs text-slate-500">{pct}% of tickets arrived</p>
-                        </Card>
-                        <Card label="Not yet arrived" value={report.stats.remaining} accent="text-slate-900" />
-                        <Card label="Tickets issued" value={report.stats.total} accent="text-slate-900" />
-                        <Card
-                            label="Duplicate attempts"
-                            value={report.result_counts.ALREADY_USED ?? 0}
-                            accent={(report.result_counts.ALREADY_USED ?? 0) > 0 ? "text-red-600" : "text-slate-900"}
-                        >
-                            <p className="mt-1 text-xs text-slate-500">
-                                {(report.result_counts.ALREADY_USED ?? 0) > 0
-                                    ? "Someone presented a ticket twice"
-                                    : "No ticket presented twice"}
-                            </p>
-                        </Card>
-                    </section>
-
-                    {report.tiers.length > 0 && (
-                        <section className="rounded-xl border border-slate-200 bg-white p-4">
-                            <h2 className="mb-3 text-sm font-semibold text-slate-900">Arrivals by tier</h2>
-                            <div className="space-y-3">
-                                {report.tiers.map((t) => {
-                                    const p = t.total ? Math.round((t.checked_in / t.total) * 100) : 0;
-                                    return (
-                                        <div key={t.name}>
-                                            <div className="flex items-baseline justify-between text-sm">
-                                                <span className="font-medium text-slate-700">{t.name}</span>
-                                                <span className="text-slate-500">
-                                                    {t.checked_in} / {t.total}
-                                                </span>
-                                            </div>
-                                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                                <div
-                                                    className="h-full rounded-full bg-emerald-500"
-                                                    style={{ width: `${p}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </section>
-                    )}
-
-                    <section className="rounded-xl border border-slate-200 bg-white">
-                        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
-                            <div className="flex flex-wrap gap-1.5">
-                                {FILTERS.map((f) => (
-                                    <button
-                                        key={f.key}
-                                        onClick={() => setFilter(f.key)}
-                                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                                            filter === f.key
-                                                ? "bg-slate-900 text-white"
-                                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                        }`}
-                                    >
-                                        {f.label}
-                                        {f.key && report.result_counts[f.key] != null && (
-                                            <span className="ml-1 opacity-70">
-                                                {report.result_counts[f.key]}
-                                            </span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="relative ml-auto">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                                <input
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Search name, email or code"
-                                    className="w-60 rounded-lg border border-slate-300 py-2 pl-8 pr-3 text-sm outline-hidden focus:border-slate-400"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[820px] text-sm">
-                                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                                    <tr>
-                                        <th className="px-4 py-2.5 font-medium">Time</th>
-                                        <th className="px-4 py-2.5 font-medium">Result</th>
-                                        <th className="px-4 py-2.5 font-medium">Attendee</th>
-                                        <th className="px-4 py-2.5 font-medium">Tier</th>
-                                        <th className="px-4 py-2.5 font-medium">Code</th>
-                                        <th className="px-4 py-2.5 font-medium">Scanned by</th>
-                                        <th className="px-4 py-2.5" />
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {visible.map((s) => {
-                                        const meta = RESULT_META[s.result] ?? {
-                                            label: s.result,
-                                            className: "bg-slate-100 text-slate-600 ring-slate-200",
-                                        };
-                                        return (
-                                            <tr key={s.id} className="hover:bg-slate-50/60">
-                                                <td className="whitespace-nowrap px-4 py-3 text-slate-500">
-                                                    {new Date(s.created_at).toLocaleString()}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span
-                                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${meta.className}`}
-                                                    >
-                                                        {s.result === "ADMITTED" ? (
-                                                            <CheckCircle2 className="h-3 w-3" />
-                                                        ) : s.result === "UNDONE" ? (
-                                                            <RotateCcw className="h-3 w-3" />
-                                                        ) : (
-                                                            <XCircle className="h-3 w-3" />
-                                                        )}
-                                                        {meta.label}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <p className="font-medium text-slate-800">
-                                                        {s.full_name || <span className="text-slate-400">—</span>}
-                                                    </p>
-                                                    {s.email && (
-                                                        <p className="text-xs text-slate-500">{s.email}</p>
-                                                    )}
-                                                </td>
-                                                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                                                    {s.ticket_type || "—"}
-                                                    {s.is_hard && (
-                                                        <span className="ml-1.5 rounded-sm bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-500">
-                                                            physical
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">
-                                                    {s.code}
-                                                </td>
-                                                <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
-                                                    {s.scanned_by || "—"}
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    {s.result === "ADMITTED" && (
-                                                        <button
-                                                            onClick={() => void undo(s)}
-                                                            disabled={undoing === s.code}
-                                                            title="Reverse this check-in"
-                                                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-white disabled:opacity-40"
-                                                        >
-                                                            <RotateCcw className="h-3 w-3" /> Undo
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {!visible.length && (
-                            <p className="p-8 text-center text-sm text-slate-500">
-                                {report.total_scans === 0
-                                    ? "No scans recorded yet. The log fills up as the gate runs."
-                                    : "No rows match that search."}
-                            </p>
-                        )}
-
-                        {report.total_scans > report.scans.length && (
-                            <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-                                Showing the {report.scans.length} most recent of {report.total_scans} scans.
-                            </p>
-                        )}
-                    </section>
-                </>
-            )}
-        </div>
-    );
+              })}
+            </div>
+            <Table head={["Time", "Result", "Ticket", "Scanned by", "Action"]} minWidth={760} empty={visible.length === 0 && <Empty>No scans yet.</Empty>}>
+              {visible.map((s) => (
+                <tr key={s.id}>
+                  <Td first className="text-[#5B6472] whitespace-nowrap">{when(s.created_at)}</Td>
+                  <Td><Badge tone={RESULT[s.result]?.tone ?? "gray"}>{RESULT[s.result]?.label ?? s.result}</Badge></Td>
+                  <Td>
+                    {s.full_name || <span className="font-mono text-[13px]">{s.code}</span>}
+                    {s.ticket_type && <span className="text-[#5B6472]"> · {s.ticket_type}{s.is_hard ? " · printed" : " · online"}</span>}
+                  </Td>
+                  <Td className="text-[#374151]">{s.scanned_by}</Td>
+                  <Td last className="text-right">
+                    {s.result === "ADMITTED" && <Button small busy={undoing === s.id} onClick={() => undo(s)}>Undo</Button>}
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            {r.total_scans > r.scans.length && <p className="m-0 px-[22px] pb-3 text-xs text-[#5B6472]">Showing the latest {r.scans.length} of {r.total_scans} scans.</p>}
+          </Card>
+        </>
+      )}
+      {!r && report.loading && eventId && <Loading />}
+    </Page>
+  );
 }
 
-function Card({
-    label,
-    value,
-    accent,
-    children,
-}: {
-    label: string;
-    value: number;
-    accent: string;
-    children?: React.ReactNode;
-}) {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-            <p className={`mt-1 text-2xl font-semibold ${accent}`}>{value}</p>
-            {children}
-        </div>
-    );
+export default function CheckinsPage() {
+  return <RoleGate roles={["COMPANY", "ADMIN"]}><Checkins /></RoleGate>;
 }

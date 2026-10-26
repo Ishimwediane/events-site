@@ -133,10 +133,10 @@ export default function QrScanner({ onDecode, paused = false }: Props) {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-slate-900 p-8 text-center">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-[20px] bg-[#0F3A52] p-8 text-center">
                 <CameraOff className="h-10 w-10 text-red-400" />
-                <p className="max-w-xs text-sm text-slate-300">{error}</p>
-                <p className="text-xs text-slate-500">
+                <p className="max-w-xs text-sm text-[#C9D4DC]">{error}</p>
+                <p className="text-xs text-[#C9D4DC]">
                     You can still check tickets in using the code entry below.
                 </p>
             </div>
@@ -144,7 +144,7 @@ export default function QrScanner({ onDecode, paused = false }: Props) {
     }
 
     return (
-        <div className="relative overflow-hidden rounded-2xl bg-black">
+        <div className="relative overflow-hidden rounded-[20px] bg-[#111111]">
             <video
                 ref={videoRef}
                 className="aspect-[4/3] w-full object-cover"
@@ -161,7 +161,7 @@ export default function QrScanner({ onDecode, paused = false }: Props) {
                         "left-0 bottom-0 border-b-4 border-l-4 rounded-bl-lg",
                         "right-0 bottom-0 border-b-4 border-r-4 rounded-br-lg",
                     ].map((cls) => (
-                        <span key={cls} className={`absolute h-8 w-8 border-white/80 ${cls}`} />
+                        <span key={cls} className={`absolute h-8 w-8 border-[#F39C12] ${cls}`} />
                     ))}
                 </div>
             </div>
