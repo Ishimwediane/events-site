@@ -2,7 +2,6 @@
 
 import { api } from "@/platform/lib/api";
 import { fetchAll, type AdminUser, type Earnings } from "@/platform/v2/admin/data";
-import { PasswordCard } from "@/platform/v2/admin/PasswordCard";
 import { RoleGate, useSession } from "@/platform/v2/Shell";
 import { Badge, Card, ErrorNote, Field, inputClass, LinkButton, Loading, NotBuilt, Notice, Page } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
@@ -76,8 +75,6 @@ function Settings() {
           </div>
         ))}
       </Card>
-
-      <PasswordCard />
     </Page>
   );
 }

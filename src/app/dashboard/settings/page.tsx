@@ -103,37 +103,6 @@ function YourName() {
   );
 }
 
-function Password() {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState("");
-  const save = async () => {
-    setBusy(true);
-    setError("");
-    setSaved("");
-    try {
-      await api.post("/dashboard/password/", { current_password: current, new_password: next });
-      setCurrent("");
-      setNext("");
-      setSaved("Password changed.");
-    } catch (e) {
-      setError(errorText(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Card title="Password">
-      {error && <ErrorNote>{error}</ErrorNote>}
-      <Field label="Current password"><input type="password" autoComplete="current-password" className={inputClass} value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
-      <Field label="New password" hint="At least 8 characters, not too common."><input type="password" autoComplete="new-password" className={inputClass} value={next} onChange={(e) => setNext(e.target.value)} /></Field>
-      <div className="flex items-center gap-3"><Button busy={busy} onClick={save} disabled={!current || next.length < 8}>Change password</Button><Saved text={saved} /></div>
-    </Card>
-  );
-}
-
 function Team() {
   const { user } = useSession();
   const staff = useLoad(() => api.get("/dashboard/gate-staff/").then((r) => listOf<Staff>(r.data)));
@@ -172,7 +141,6 @@ function Settings() {
         <Team />
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <YourName />
-          <Password />
         </div>
         <Card title="Emails to me">
           <NotBuilt>Choosing which emails you get (daily summary, each payment) isn&apos;t built yet.</NotBuilt>

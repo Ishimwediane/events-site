@@ -48,7 +48,6 @@ function menuFor(user: SessionUser, company: Company | null): Item[] {
       { href: "/dashboard/admin/events", label: "Events and voting", icon: CalendarDays },
       { href: "/dashboard/admin/users", label: "Users", icon: Users },
       { href: "/dashboard/admin/money", label: "Money", icon: Wallet },
-      { href: "/dashboard/admin/system", label: "System", icon: Activity },
       { href: "/dashboard/admin/settings", label: "Settings", icon: Settings },
     ];
   }
