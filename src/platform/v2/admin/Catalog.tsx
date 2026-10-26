@@ -111,7 +111,6 @@ export function Catalog({ show }: { show: "voting" | "events" }) {
               <Td last className="text-right whitespace-nowrap">
                 <span className="inline-flex gap-1.5">
                   <LinkButton href={`/dashboard/voting/${c.id}`} small>Open</LinkButton>
-                  <LinkButton href={`/dashboard/voting/${c.id}/log`} small>Votes</LinkButton>
                   <Button
                     kind="danger"
                     small

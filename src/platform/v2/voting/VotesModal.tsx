@@ -30,7 +30,7 @@ function VotesForm({ onClose, onSaved, nominees, nomineeId }: Props) {
     const n = parseInt(votes, 10);
     if (!nominee) return setError("Choose a nominee.");
     if (!n) return setError("Enter how many votes to add, or a minus number to remove.");
-    if (!reason.trim()) return setError("Write a reason. It is kept in the vote log.");
+    if (!reason.trim()) return setError("Write a reason. It is recorded with the change.");
     setBusy(true);
     setError("");
     try {
@@ -56,7 +56,7 @@ function VotesForm({ onClose, onSaved, nominees, nomineeId }: Props) {
         </>
       }
     >
-      <p className="m-0 text-[13px] text-[#5B6472]">For votes paid in cash or corrections. Every change is kept in the vote log with your name.</p>
+      <p className="m-0 text-[13px] text-[#5B6472]">For votes paid in cash or corrections. Every change is recorded with your name.</p>
       {error && <ErrorNote>{error}</ErrorNote>}
       {!nomineeId && (
         <Field label="Nominee">

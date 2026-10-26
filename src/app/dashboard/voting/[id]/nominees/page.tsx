@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -229,7 +228,6 @@ function Nominees() {
           <Card><p className="m-0 text-sm text-[#5B6472]">Add a category first, then its nominees.</p></Card>
         )}
       </div>
-      <p className="m-0 text-[13px] text-[#5B6472]">Vote history for every nominee is on the <Link href={`/dashboard/voting/${id}/log`} className="font-semibold">Vote log</Link>.</p>
 
       <CategoryModal
         open={catModal.open}

@@ -57,15 +57,14 @@ export const allNominees = (c: Campaign): (Nominee & { categoryName: string })[]
 
 export const campaignDates = (c: Campaign) => `${day(c.start_date)}${c.end_date ? ` – ${day(c.end_date)}` : ""}`;
 
-export function CampaignTabs({ id, active }: { id: string; active: "results" | "nominees" | "log" | "details" }) {
+export function CampaignTabs({ id, active }: { id: string; active: "results" | "nominees" | "details" }) {
   const base = `/dashboard/voting/${id}`;
   const tabs = [
     { href: base, label: "Results" },
     { href: `${base}/nominees`, label: "Categories and nominees" },
-    { href: `${base}/log`, label: "Vote log" },
     { href: `${base}/details`, label: "Details and packages" },
   ];
-  const map = { results: base, nominees: `${base}/nominees`, log: `${base}/log`, details: `${base}/details` };
+  const map = { results: base, nominees: `${base}/nominees`, details: `${base}/details` };
   return <TabLinks tabs={tabs} active={map[active]} />;
 }
 
