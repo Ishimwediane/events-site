@@ -29,7 +29,7 @@ function Overview() {
     <Page
       title="Platform overview"
       subtitle="All clients, all events, in one place."
-      actions={<LinkButton href="/dashboard/admin/clients" kind="primary">+ Add client</LinkButton>}
+
     >
       <StatGrid min={240}>
         <Stat dark label="Money through the platform" value={rwf(o.totals.gross)} unit="RWF" note={`All time · ${o.clients} ${o.clients === 1 ? "client" : "clients"}`} />
