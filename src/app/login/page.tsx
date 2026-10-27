@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { authService } from "@/platform/services/auth.service";
 import { api } from "@/platform/lib/api";
@@ -60,9 +59,9 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex flex-wrap bg-white font-body text-[#111827]">
             <section className="flex-[1_1_420px] bg-[#08283B] text-white p-8 sm:p-14 box-border flex flex-col justify-between gap-10 min-h-[320px]">
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-[#F39C12] text-[#08283B] flex items-center justify-center font-heading font-bold text-xl">O</div>
-                    <span className="font-heading font-bold text-xl">Ozone Events</span>
+                <div className="w-28 h-28 rounded-2xl bg-white p-1.5 box-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="Ozone Entertainments" className="w-full h-full object-contain" />
                 </div>
                 <div className="flex flex-col gap-4 max-w-[460px]">
                     <h1 className="m-0 font-heading text-4xl sm:text-[44px] leading-[1.1] font-bold">
@@ -127,12 +126,6 @@ export default function LoginPage() {
                         Sign in
                     </button>
 
-                    <p className="m-0 text-center text-sm text-[#5B6472]">
-                        No account yet?{" "}
-                        <Link href="/company/register" className="font-semibold text-[#B86E00] hover:underline">
-                            Register your organisation
-                        </Link>
-                    </p>
                 </form>
             </section>
         </div>

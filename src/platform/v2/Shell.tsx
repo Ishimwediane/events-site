@@ -126,11 +126,6 @@ function Sidebar({ user, company, items, onNavigate }: {
         >
           <LogOut className="w-4 h-4" /> Sign out
         </button>
-        <div className="p-3.5 rounded-xl bg-[#F4F5F7] text-xs text-[#4B5563] leading-relaxed">
-          Powered by <b className="text-[#08283B]">Vexta Ltd</b>
-          <br />
-          Help: 0790 755 673
-        </div>
       </div>
     </aside>
   );

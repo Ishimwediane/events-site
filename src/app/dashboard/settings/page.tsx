@@ -108,7 +108,7 @@ function Team() {
   const staff = useLoad(() => api.get("/dashboard/gate-staff/").then((r) => listOf<Staff>(r.data)));
   return (
     <Card padded={false} title="Team" actions={<AddDoorStaff onAdded={staff.reload} />}>
-      <p className="m-0 px-[22px] text-[13px] text-[#5B6472]">You can add door staff, who can only scan tickets and never see money. For any other account, contact Ozone Events · 0790 755 673.</p>
+      <p className="m-0 px-[22px] text-[13px] text-[#5B6472]">You can add door staff, who can only scan tickets and never see money. For any other account, contact Ozone Events · +250 784 731 957.</p>
       {staff.error && <div className="px-[22px]"><ErrorNote>{staff.error}</ErrorNote></div>}
       <Table head={["Person", "Can do", "Event", ""]} minWidth={640} empty={!staff.loading && (staff.data ?? []).length === 0 && <Empty>No door staff yet.</Empty>}>
         <tr>
@@ -142,7 +142,7 @@ function Settings() {
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <YourName />
         </div>
-        <Notice>Need help? Call Ozone Events on 0790 755 673.</Notice>
+        <Notice>Need help? Call Ozone Events on +250 784 731 957.</Notice>
       </div>
     </Page>
   );
