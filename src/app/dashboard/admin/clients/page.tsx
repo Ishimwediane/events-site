@@ -7,7 +7,7 @@ import { AUTH_LABEL, type Client } from "@/platform/v2/admin/data";
 import { day, errorText, rwfLabel } from "@/platform/v2/format";
 import { RoleGate } from "@/platform/v2/Shell";
 import {
-  Badge, Button, Card, ErrorNote, Field, inputClass, LinkButton, Loading, Modal, Page,
+  Badge, Button, Card, ErrorNote, Field, inputClass, LinkButton, Loading, Modal, Notice, Page,
 } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
@@ -33,6 +33,7 @@ function Clients() {
   const [busy, setBusy] = useState("");
   const [formError, setFormError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [created, setCreated] = useState("");
 
   const open = (c: Client | "new") => {
     setEditing(c);
@@ -48,6 +49,7 @@ function Clients() {
         await api.post("/companies/admin/create/", {
           name: form.name, email: form.email, password: form.password, authorization: form.authorization, can_use_qr: form.can_use_qr,
         });
+        setCreated(`${form.name} is ready. They log in at ${window.location.origin}/login with ${form.email} and the password you set, then create their own events and voting.`);
       } else if (editing) {
         await api.patch(`/companies/admin/${editing.id}/`, {
           name: form.name, description: form.description, authorization: form.authorization, can_use_qr: form.can_use_qr,
@@ -95,6 +97,7 @@ function Clients() {
         </>
       }
     >
+      {created && <Notice>{created}</Notice>}
       {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
       <section className="flex flex-col gap-3.5">
@@ -105,7 +108,7 @@ function Clients() {
                 <div className="w-12 h-12 shrink-0 rounded-xl bg-[#08283B] text-[#F39C12] flex items-center justify-center font-heading font-bold text-xl">{c.name[0]?.toUpperCase()}</div>
                 <div className="min-w-0">
                   <h2 className="m-0 text-[17px] font-semibold">{c.name}</h2>
-                  <span className="text-[13px] text-[#5B6472] break-all">{c.email} · client since {day(c.created_at)}</span>
+                  <span className="text-[13px] text-[#5B6472] break-all">{c.email} · since {day(c.created_at)}</span>
                 </div>
               </div>
               {!c.is_active ? <Badge tone="red">Paused</Badge> : c.live ? <Badge tone="green">Live now</Badge> : <Badge>Quiet</Badge>}
@@ -127,21 +130,21 @@ function Clients() {
                   act(c.id, () => api.patch(`/users/${c.user_id}/`, { is_active: !c.is_active }));
                 }}
               >
-                {c.is_active ? "Pause client" : "Resume client"}
+                {c.is_active ? "Pause organiser" : "Resume organiser"}
               </Button>}
             </div>
           </article>
         ))}
-        {!clients.length && <Card><p className="m-0 text-sm text-[#5B6472]">No clients match.</p></Card>}
+        {!clients.length && <Card><p className="m-0 text-sm text-[#5B6472]">No organisers match.</p></Card>}
       </section>
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={editing === "new" ? "Add a client" : editing ? `Edit ${editing.name}` : ""}
+        title={editing === "new" ? "Add an organiser" : editing ? `Edit ${editing.name}` : ""}
         footer={
           <>
             <Button onClick={() => setEditing(null)}>Cancel</Button>
-            <Button kind="primary" busy={busy === "save"} onClick={save}>{editing === "new" ? "Create client" : "Save changes"}</Button>
+            <Button kind="primary" busy={busy === "save"} onClick={save}>{editing === "new" ? "Create organiser" : "Save changes"}</Button>
           </>
         }
       >
