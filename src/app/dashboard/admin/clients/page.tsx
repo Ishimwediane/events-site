@@ -44,6 +44,12 @@ function Clients() {
   const save = async () => {
     setBusy("save");
     setFormError("");
+    // A stray space is invisible here but must then be typed at every login.
+    if (form.password !== form.password.trim()) {
+      setFormError("The password starts or ends with a space. Remove it so they can log in.");
+      setBusy("");
+      return;
+    }
     try {
       if (editing === "new") {
         await api.post("/companies/admin/create/", {
@@ -54,9 +60,10 @@ function Clients() {
         await api.patch(`/companies/admin/${editing.id}/`, {
           name: form.name, description: form.description, authorization: form.authorization, can_use_qr: form.can_use_qr,
         });
-        if (editing.user_id && form.active !== editing.is_active) {
-          await api.patch(`/users/${editing.user_id}/`, { is_active: form.active });
+        if (editing.user_id && (form.active !== editing.is_active || form.password)) {
+          await api.patch(`/users/${editing.user_id}/`, { is_active: form.active, ...(form.password ? { password: form.password } : {}) });
         }
+        if (form.password) setCreated(`New password saved for ${form.name}. They log in with ${editing.email} and the new password.`);
       }
       setEditing(null);
       await reload();
@@ -165,9 +172,14 @@ function Clients() {
             </Field>
           </>
         ) : (
-          <Field label="About them (optional)">
-            <textarea rows={3} className={inputClass} value={form.description} onChange={(e) => set({ description: e.target.value })} />
-          </Field>
+          <>
+            <Field label="About them (optional)">
+              <textarea rows={3} className={inputClass} value={form.description} onChange={(e) => set({ description: e.target.value })} />
+            </Field>
+            <Field label="New password (optional)" hint="Leave empty to keep their current password. At least 8 characters.">
+              <input type="text" autoComplete="new-password" className={inputClass} value={form.password} onChange={(e) => set({ password: e.target.value })} />
+            </Field>
+          </>
         )}
         <Field label="They can use">
           <select className={inputClass} value={form.authorization} onChange={(e) => set({ authorization: e.target.value })}>
