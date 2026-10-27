@@ -7,7 +7,7 @@ import { getImageUrl } from "@/platform/lib/images";
 import { errorText } from "@/platform/v2/format";
 import { PasswordCard } from "@/platform/v2/PasswordCard";
 import { RoleGate, useSession } from "@/platform/v2/Shell";
-import { Badge, Button, Card, Empty, ErrorNote, Field, NotBuilt, Notice, Page, Table, Td, inputClass } from "@/platform/v2/ui";
+import { Badge, Button, Card, Empty, ErrorNote, Field, Notice, Page, Table, Td, inputClass } from "@/platform/v2/ui";
 import { AddDoorStaff, RemoveDoorStaff } from "@/platform/v2/org/DoorStaff";
 import { listOf, useLoad } from "@/platform/v2/useLoad";
 
@@ -136,9 +136,6 @@ function Settings() {
     <Page title="Settings" subtitle="Your organisation, your login and the people who can sign in.">
       <div className="flex flex-col gap-5 max-w-[1100px]">
         <Organisation />
-        <Card title="Where your money goes">
-          <NotBuilt>Each client&apos;s payout MoMo number isn&apos;t stored in the system yet; payments are paid out to the number Ozone Events set up. Contact Ozone Events to check or change it.</NotBuilt>
-        </Card>
         <Team />
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <YourName />
