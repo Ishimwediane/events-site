@@ -224,11 +224,3 @@ export function TabLinks({ tabs, active }: { tabs: { href: string; label: string
     </nav>
   );
 }
-
-export function NotBuilt({ children }: { children: ReactNode }) {
-  return (
-    <p className="m-0 rounded-xl border border-dashed border-[#C7CDD4] px-4 py-3 text-[13px] text-[#5B6472]">
-      <b className="text-[#374151]">Not available yet.</b> {children}
-    </p>
-  );
-}

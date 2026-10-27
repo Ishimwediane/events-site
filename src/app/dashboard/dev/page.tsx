@@ -3,7 +3,7 @@
 import { api } from "@/platform/lib/api";
 import { RoleGate } from "@/platform/v2/Shell";
 import { methodLabel, num, rwf } from "@/platform/v2/format";
-import { Bar, Card, Empty, ErrorNote, Loading, NotBuilt, Page, Stat, StatGrid, Table, Td } from "@/platform/v2/ui";
+import { Bar, Card, Empty, ErrorNote, Loading, Page, Stat, StatGrid, Table, Td } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
 type Earnings = {
@@ -108,13 +108,6 @@ function Earnings() {
           ))}
         </Card>
       </div>
-
-      <Card title={`Get my ${pct}% automatically`}>
-        <p className="m-0 text-sm text-[#5B6472]">
-          Weflexfy can split each payment: {pct}% straight to your MoMo, the rest to the client. Nothing to collect by hand.
-        </p>
-        <NotBuilt>Weflexfy currently sends 100% to the client&apos;s number. Splitting needs your MoMo number added to the payment set-up on the server.</NotBuilt>
-      </Card>
     </Page>
   );
 }

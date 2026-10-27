@@ -3,7 +3,7 @@
 import { API_URL } from "@/platform/lib/api";
 import { RoleGate } from "@/platform/v2/Shell";
 import { PasswordCard } from "@/platform/v2/PasswordCard";
-import { Badge, Card, NotBuilt, Notice, Page } from "@/platform/v2/ui";
+import { Badge, Card, Page } from "@/platform/v2/ui";
 
 const apiHost = API_URL.replace(/^https?:\/\//, "").replace(/\/api\/?$/, "");
 
@@ -16,15 +16,7 @@ const SERVICES = [
 
 function Settings() {
   return (
-    <Page title="Developer settings" subtitle="Your payout, alerts, and the services the platform runs on.">
-      <Card title="My 10%">
-        <NotBuilt>Receiving your share automatically on your own MoMo number needs a second Weflexfy recipient on the server. Until then it shows as &quot;still to collect&quot; on My earnings.</NotBuilt>
-      </Card>
-
-      <Card title="Alert me when">
-        <NotBuilt>Email or SMS alerts (website down, failed payouts, stuck payments, many errors, missed backup) are not set up yet. Check System health meanwhile.</NotBuilt>
-      </Card>
-
+    <Page title="Developer settings" subtitle="The services the platform runs on, deploys, backups and your password.">
       <Card title="Connected services">
         {SERVICES.map((s) => (
           <div key={s.name} className="flex flex-wrap justify-between items-center gap-3 p-3.5 border border-[#E5E7EB] rounded-xl">
@@ -43,11 +35,9 @@ function Settings() {
           <p className="m-0 text-sm text-[#374151]">
             Every push to <b>main</b> on GitHub goes live by itself, only if all tests pass. If the new version fails its health check, the old one comes back.
           </p>
-          <Notice>Rolling back from here is not available; use the deploy script on the server.</Notice>
         </Card>
         <Card title="Backups">
           <p className="m-0 text-sm text-[#374151]">The whole database is saved every night at 02:00. The last 14 days are kept on the server.</p>
-          <Notice>Downloading a backup from here is not available; copy it from the server.</Notice>
         </Card>
       </div>
 

@@ -4,7 +4,7 @@ import { api } from "@/platform/lib/api";
 import { RoleGate } from "@/platform/v2/Shell";
 import { problems, type Health } from "@/platform/v2/dev/health";
 import { num, rwf, when } from "@/platform/v2/format";
-import { Bar, Button, Card, ErrorNote, Loading, NotBuilt, Page, Table, Td } from "@/platform/v2/ui";
+import { Bar, Button, Card, ErrorNote, Loading, Page, Table, Td } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
 function Dot({ ok }: { ok: boolean }) {
@@ -79,10 +79,6 @@ function System() {
               <span className="text-right font-semibold tabular-nums">{num(n as number)}</span>
             </div>
           ))}
-        </Card>
-
-        <Card title="Server">
-          <NotBuilt>Memory, disk, running containers, server errors and USSD session counts are not reported by the API yet. Check them on the server.</NotBuilt>
         </Card>
       </div>
 

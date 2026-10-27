@@ -6,7 +6,7 @@ import { api } from "@/platform/lib/api";
 import { downloadCsv, methodLabel, rwf, rwfLabel, when } from "@/platform/v2/format";
 import type { Earnings } from "@/platform/v2/org/types";
 import { RoleGate } from "@/platform/v2/Shell";
-import { Badge, Button, Card, Empty, ErrorNote, Field, Loading, NotBuilt, Page, Table, Td, inputClass } from "@/platform/v2/ui";
+import { Badge, Button, Card, Empty, ErrorNote, Field, Loading, Page, Table, Td, inputClass } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
 const PERIODS: Record<string, () => string> = {
@@ -92,7 +92,6 @@ function Money() {
               <b className="tabular-nums">{rwfLabel(v)}</b>
             </div>
           ))}
-          <NotBuilt>Payouts to your MoMo number aren&apos;t tracked per client yet. Ozone Events can tell you where your money is sent.</NotBuilt>
         </Card>
       </div>
 
