@@ -7,7 +7,7 @@ import { AUTH_LABEL, type Client } from "@/platform/v2/admin/data";
 import { day, errorText, rwfLabel } from "@/platform/v2/format";
 import { RoleGate } from "@/platform/v2/Shell";
 import {
-  Badge, Button, Card, ErrorNote, Field, inputClass, LinkButton, Loading, Modal, Notice, Page,
+  Badge, Button, Card, ErrorNote, Field, inputClass, Loading, Modal, Notice, Page,
 } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
@@ -19,8 +19,8 @@ export default function ClientsPage() {
   );
 }
 
-type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean };
-const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true };
+type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean; active: boolean };
+const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true, active: true };
 
 function Clients() {
   const { data, error, loading, reload } = useLoad(async () => {
@@ -38,7 +38,7 @@ function Clients() {
   const open = (c: Client | "new") => {
     setEditing(c);
     setFormError("");
-    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr });
+    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr, active: c.is_active });
   };
 
   const save = async () => {
@@ -54,6 +54,9 @@ function Clients() {
         await api.patch(`/companies/admin/${editing.id}/`, {
           name: form.name, description: form.description, authorization: form.authorization, can_use_qr: form.can_use_qr,
         });
+        if (editing.user_id && form.active !== editing.is_active) {
+          await api.patch(`/users/${editing.user_id}/`, { is_active: form.active });
+        }
       }
       setEditing(null);
       await reload();
@@ -108,29 +111,27 @@ function Clients() {
                 <div className="w-12 h-12 shrink-0 rounded-xl bg-[#08283B] text-[#F39C12] flex items-center justify-center font-heading font-bold text-xl">{c.name[0]?.toUpperCase()}</div>
                 <div className="min-w-0">
                   <h2 className="m-0 text-[17px] font-semibold">{c.name}</h2>
-                  <span className="text-[13px] text-[#5B6472] break-all">{c.email} · since {day(c.created_at)}</span>
+                  <span className="text-[13px] text-[#5B6472] break-all">{c.email || "No login"} · since {day(c.created_at)}</span>
                 </div>
               </div>
-              {!c.is_active ? <Badge tone="red">Paused</Badge> : c.live ? <Badge tone="green">Live now</Badge> : <Badge>Quiet</Badge>}
+              {!c.user_id ? <Badge>Ozone&apos;s own</Badge> : c.is_active ? <Badge tone="green">Can log in</Badge> : <Badge tone="red">Paused</Badge>}
             </div>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
-              <Mini label="Events / voting" value={`${c.events} ${c.events === 1 ? "event" : "events"} · ${c.campaigns} voting`} />
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
               <Mini label="Money in" value={rwfLabel(c.gross)} />
               <Mini label="Developer 10%" value={rwfLabel(c.developer)} green />
               <Mini label="Can use" value={`${AUTH_LABEL[c.authorization] || c.authorization}${c.can_use_qr ? " · QR scanner" : ""}`} />
             </div>
             <div className="flex flex-wrap gap-2.5">
-              <LinkButton href={`/dashboard/admin/events?client=${encodeURIComponent(c.name)}`} kind="dark">Their events and voting</LinkButton>
               <Button onClick={() => open(c)}>Edit</Button>
               {c.user_id && <Button
-                kind={c.is_active ? "danger" : "outline"}
+                kind="danger"
                 busy={busy === c.id}
                 onClick={() => {
-                  if (c.is_active && !window.confirm(`Pause ${c.name}? They will not be able to log in until you resume them.`)) return;
-                  act(c.id, () => api.patch(`/users/${c.user_id}/`, { is_active: !c.is_active }));
+                  if (!window.confirm(`Delete ${c.name} and their login? This cannot be undone.`)) return;
+                  act(c.id, () => api.delete(`/companies/admin/${c.id}/`));
                 }}
               >
-                {c.is_active ? "Pause organiser" : "Resume organiser"}
+                Delete
               </Button>}
             </div>
           </article>
@@ -176,6 +177,11 @@ function Clients() {
         <label className="flex gap-2 items-center text-sm">
           <input type="checkbox" checked={form.can_use_qr} onChange={(e) => set({ can_use_qr: e.target.checked })} className="w-[18px] h-[18px]" /> QR tickets and door scanner
         </label>
+        {editing && editing !== "new" && editing.user_id && (
+          <label className="flex gap-2 items-center text-sm">
+            <input type="checkbox" checked={form.active} onChange={(e) => set({ active: e.target.checked })} className="w-[18px] h-[18px]" /> Can log in (untick to pause them)
+          </label>
+        )}
         {formError && <ErrorNote>{formError}</ErrorNote>}
       </Modal>
     </Page>
