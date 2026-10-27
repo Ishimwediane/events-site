@@ -16,7 +16,7 @@ type Campaign = {
 type TicketType = { quantity: number; remaining: number };
 type EventRow = {
   id: string; title: string; organizer: string; organizer_name: string; status: string;
-  start_date: string; location: string; ticket_types: TicketType[];
+  start_date: string; location: string; tickets?: TicketType[];
 };
 type Company = { id: string; name: string };
 
@@ -133,8 +133,9 @@ export function Catalog({ show }: { show: "voting" | "events" }) {
       {!voting && <Card padded={false} title="Events with tickets">
         <Table head={["Event", "Client", "Date", "Tickets out", "Status", "Action"]} minWidth={940}>
           {events.map((e) => {
-            const out = e.ticket_types.reduce((s, t) => s + (t.quantity - t.remaining), 0);
-            const cap = e.ticket_types.reduce((s, t) => s + t.quantity, 0);
+            const tiers = e.tickets ?? [];
+            const out = tiers.reduce((s, t) => s + (t.quantity - t.remaining), 0);
+            const cap = tiers.reduce((s, t) => s + t.quantity, 0);
             return (
               <tr key={e.id}>
                 <Td first><b>{e.title}</b><br /><span className="text-xs text-[#5B6472]">{e.location}</span></Td>

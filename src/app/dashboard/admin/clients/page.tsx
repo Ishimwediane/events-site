@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 import { api } from "@/platform/lib/api";
-import { AUTH_LABEL, fetchAll, type Application, type Client } from "@/platform/v2/admin/data";
+import { AUTH_LABEL, type Client } from "@/platform/v2/admin/data";
 import { day, errorText, rwfLabel } from "@/platform/v2/format";
 import { RoleGate } from "@/platform/v2/Shell";
 import {
-  Badge, Button, Card, ErrorNote, Field, inputClass, LinkButton, Loading, Modal, NotBuilt, Page,
+  Badge, Button, Card, ErrorNote, Field, inputClass, LinkButton, Loading, Modal, Page,
 } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
@@ -24,11 +24,8 @@ const EMPTY: Form = { name: "", email: "", password: "", description: "", author
 
 function Clients() {
   const { data, error, loading, reload } = useLoad(async () => {
-    const [clients, applications] = await Promise.all([
-      api.get<{ clients: Client[] }>("/dashboard/admin/clients/").then((r) => r.data.clients),
-      fetchAll<Application>("/companies/applications/"),
-    ]);
-    return { clients, pending: applications.filter((a) => a.status === "PENDING") };
+    const clients = await api.get<{ clients: Client[] }>("/dashboard/admin/clients/").then((r) => r.data.clients);
+    return { clients };
   });
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Client | "new" | null>(null);
@@ -137,43 +134,6 @@ function Clients() {
         ))}
         {!clients.length && <Card><p className="m-0 text-sm text-[#5B6472]">No clients match.</p></Card>}
       </section>
-
-      <Card title="Sign-ups waiting for approval">
-        {data.pending.map((a) => (
-          <div key={a.id} className="flex flex-wrap justify-between items-center gap-3 px-3.5 py-3 border border-[#E5E7EB] rounded-xl">
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span><b>{a.company_name}</b> <span className="text-[13px] text-[#5B6472]">· {a.email} · {a.phone}</span></span>
-              <span className="text-[13px] text-[#5B6472]">{AUTH_LABEL[a.authorization] || a.authorization} · applied {day(a.created_at)}</span>
-              {a.description && <span className="text-[13px] text-[#374151]">{a.description}</span>}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                kind="dark"
-                small
-                busy={busy === `ok-${a.id}`}
-                onClick={() => act(`ok-${a.id}`, () => api.patch(`/companies/applications/${a.id}/`, { status: "APPROVED" }))}
-              >
-                Approve
-              </Button>
-              <Button
-                small
-                busy={busy === `no-${a.id}`}
-                onClick={() => {
-                  const reason = window.prompt(`Why are you declining ${a.company_name}? They will see this.`);
-                  if (reason === null) return;
-                  act(`no-${a.id}`, () => api.patch(`/companies/applications/${a.id}/`, { status: "REJECTED", rejection_reason: reason }));
-                }}
-              >
-                Decline
-              </Button>
-            </div>
-          </div>
-        ))}
-        {!data.pending.length && <p className="m-0 text-sm text-[#5B6472]">No sign-ups waiting.</p>}
-      </Card>
-
-      <NotBuilt>Opening a client&apos;s own dashboard as them, and sending them a password reset email. Use &quot;Their events and voting&quot; to manage their campaigns and events.</NotBuilt>
-
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}
