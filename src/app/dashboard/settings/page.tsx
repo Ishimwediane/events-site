@@ -142,9 +142,6 @@ function Settings() {
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <YourName />
         </div>
-        <Card title="Emails to me">
-          <NotBuilt>Choosing which emails you get (daily summary, each payment) isn&apos;t built yet.</NotBuilt>
-        </Card>
         <Notice>Need help? Call Ozone Events on 0790 755 673.</Notice>
       </div>
     </Page>
