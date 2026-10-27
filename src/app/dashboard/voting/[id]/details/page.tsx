@@ -6,7 +6,7 @@ import { useState } from "react";
 import { api } from "@/platform/lib/api";
 import { getImageUrl } from "@/platform/lib/images";
 import { errorText } from "@/platform/v2/format";
-import { RoleGate } from "@/platform/v2/Shell";
+import { RoleGate, useListHref } from "@/platform/v2/Shell";
 import { Button, Card, ErrorNote, Field, Loading, Notice, Page, inputClass } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 import { PackageRows, savePackages, toDraft, type PackageDraft } from "@/platform/v2/voting/packages";
@@ -88,6 +88,7 @@ function DetailsForm({ c, reload, savedNote }: { c: Campaign; reload: (note?: bo
 }
 
 function Details() {
+  const list = useListHref("voting");
   const id = useParams().id as string;
   const { data: c, error, loading, reload } = useLoad(
     () => api.get(`/voting/campaigns/${id}/`).then((r) => r.data as Campaign),
@@ -109,7 +110,7 @@ function Details() {
     <Page
       title={c.title}
       subtitle={campaignDates(c)}
-      back={{ href: "/dashboard/voting", label: "Voting" }}
+      back={{ href: list, label: "Voting" }}
       actions={<StatusSelect campaign={c} onSaved={reload} />}
     >
       <CampaignTabs id={id} active="details" />

@@ -76,7 +76,7 @@ function Clients() {
   };
 
   if (loading) return <Loading />;
-  if (error || !data) return <Page title="Clients"><ErrorNote>{error}</ErrorNote></Page>;
+  if (error || !data) return <Page title="Organisers"><ErrorNote>{error}</ErrorNote></Page>;
 
   const q = search.trim().toLowerCase();
   const clients = data.clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
@@ -84,14 +84,14 @@ function Clients() {
 
   return (
     <Page
-      title="Clients"
-      subtitle="Each client gets their own login and sees only their own events and money."
+      title="Organisers"
+      subtitle="Each organiser gets their own login and sees only their own events and money."
       actions={
         <>
           <Field label="Search">
-            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Client or email" className={`${inputClass} min-w-[240px]`} />
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Organiser or email" className={`${inputClass} min-w-[240px]`} />
           </Field>
-          <Button kind="primary" onClick={() => open("new")}>+ Add client</Button>
+          <Button kind="primary" onClick={() => open("new")}>+ Add organiser</Button>
         </>
       }
     >

@@ -7,7 +7,7 @@ import { brand } from "@/config/site";
 import { campaignPath, ussdVote } from "@/lib/slug";
 import { api } from "@/platform/lib/api";
 import { num, rwf } from "@/platform/v2/format";
-import { RoleGate } from "@/platform/v2/Shell";
+import { RoleGate, useListHref } from "@/platform/v2/Shell";
 import { Bar, Card, LinkButton, Empty, ErrorNote, Loading, Page, Stat, StatGrid, Table, Td, inputClass } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 import { CampaignTabs, StatusSelect, allNominees, campaignDates, type Campaign } from "@/platform/v2/voting/shared";
@@ -15,6 +15,7 @@ import { CampaignTabs, StatusSelect, allNominees, campaignDates, type Campaign }
 const DAY = 24 * 60 * 60 * 1000;
 
 function Results() {
+  const list = useListHref("voting");
   const id = useParams().id as string;
   const { data: c, error, loading, reload } = useLoad(
     () => api.get(`/voting/campaigns/${id}/`).then((r) => r.data as Campaign),
@@ -70,7 +71,7 @@ function Results() {
     <Page
       title={c.title}
       subtitle={`${campaignDates(c)} · ${num(c.categories.length)} categories · ${num(nominees.length)} nominees`}
-      back={{ href: "/dashboard/voting", label: "Voting" }}
+      back={{ href: list, label: "Voting" }}
       actions={<StatusSelect campaign={c} onSaved={reload} />}
     >
       <CampaignTabs id={id} active="results" />

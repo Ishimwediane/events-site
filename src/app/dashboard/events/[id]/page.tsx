@@ -243,7 +243,7 @@ function EventPage() {
     if (!window.confirm(`Delete "${event.title}" with all its ticket types and tickets? This cannot be undone.`)) return;
     try {
       await api.delete(`/events/${event.id}/`);
-      router.replace(admin ? "/dashboard/admin" : "/dashboard/tickets");
+      router.replace(admin ? "/dashboard/admin/events" : "/dashboard/tickets");
     } catch (e) {
       setError(errorText(e));
     }
@@ -251,7 +251,7 @@ function EventPage() {
 
   return (
     <Page
-      back={admin ? { href: "/dashboard/admin", label: "Admin" } : { href: "/dashboard/tickets", label: "All events" }}
+      back={admin ? { href: "/dashboard/admin/events", label: "Events" } : { href: "/dashboard/tickets", label: "All events" }}
       title={
         <span className="flex items-center gap-4">
           {event.flyer && (

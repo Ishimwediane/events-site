@@ -27,7 +27,8 @@ function CampaignList() {
 
   // One campaign: go straight to it.
   useEffect(() => {
-    if (!admin && data && data.length === 1) router.replace(`/dashboard/voting/${data[0].id}`);
+    if (admin) router.replace("/dashboard/admin/voting");
+    else if (data && data.length === 1) router.replace(`/dashboard/voting/${data[0].id}`);
   }, [admin, data, router]);
 
   return (

@@ -8,7 +8,7 @@ import { ussdVote } from "@/lib/slug";
 import { api } from "@/platform/lib/api";
 import { getImageUrl } from "@/platform/lib/images";
 import { errorText, num } from "@/platform/v2/format";
-import { RoleGate } from "@/platform/v2/Shell";
+import { RoleGate, useListHref } from "@/platform/v2/Shell";
 import { Button, Card, ErrorNote, Field, Loading, Modal, Page, inputClass } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 import VotesModal from "@/platform/v2/voting/VotesModal";
@@ -109,6 +109,7 @@ function NomineeForm({ onClose, onSaved, categoryId, nominee }: NomineeProps) {
 }
 
 function Nominees() {
+  const list = useListHref("voting");
   const id = useParams().id as string;
   const { data: c, error, loading, reload } = useLoad(
     () => api.get(`/voting/campaigns/${id}/`).then((r) => r.data as Campaign),
@@ -150,7 +151,7 @@ function Nominees() {
     <Page
       title={c.title}
       subtitle={`${campaignDates(c)} · ${num(c.categories.length)} categories · ${num(allNominees(c).length)} nominees`}
-      back={{ href: "/dashboard/voting", label: "Voting" }}
+      back={{ href: list, label: "Voting" }}
       actions={<StatusSelect campaign={c} onSaved={reload} />}
     >
       <CampaignTabs id={id} active="nominees" />

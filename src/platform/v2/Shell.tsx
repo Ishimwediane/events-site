@@ -78,8 +78,19 @@ function activeHref(path: string, items: Item[]): string {
   for (const i of items) {
     if ((path === i.href || path.startsWith(`${i.href}/`)) && i.href.length > best.length) best = i.href;
   }
-  if (!best && (path.startsWith("/dashboard/events") || path.startsWith("/dashboard/tickets"))) return "/dashboard/tickets";
-  return best;
+  if (best) return best;
+  // Admins open campaigns and events on the organiser's pages; keep their own menu item lit.
+  const admin = items.some((i) => i.href === "/dashboard/admin/voting");
+  if (path.startsWith("/dashboard/voting")) return admin ? "/dashboard/admin/voting" : "";
+  if (path.startsWith("/dashboard/events") || path.startsWith("/dashboard/tickets")) return admin ? "/dashboard/admin/events" : "/dashboard/tickets";
+  return "";
+}
+
+/** Where "back to the list" goes: the admin's lists, or the organiser's. */
+export function useListHref(kind: "voting" | "events"): string {
+  const { user } = useSession();
+  if (user.role === "ADMIN") return kind === "voting" ? "/dashboard/admin/voting" : "/dashboard/admin/events";
+  return kind === "voting" ? "/dashboard/voting" : "/dashboard/tickets";
 }
 
 function Brand({ user, company }: { user: SessionUser; company: Company | null }) {

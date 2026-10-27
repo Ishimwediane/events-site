@@ -5,13 +5,14 @@ import { Suspense, useState } from "react";
 
 import { api } from "@/platform/lib/api";
 import { errorText } from "@/platform/v2/format";
-import { RoleGate, useSession } from "@/platform/v2/Shell";
+import { RoleGate, useListHref, useSession } from "@/platform/v2/Shell";
 import { Button, Card, ErrorNote, Field, LinkButton, Page, inputClass } from "@/platform/v2/ui";
 import { useLoad, listOf } from "@/platform/v2/useLoad";
 import { ImagePicker, fromLocalInput } from "@/platform/v2/voting/shared";
 import { PackageRows, type PackageDraft, savePackages } from "@/platform/v2/voting/packages";
 
 function NewCampaign() {
+  const list = useListHref("voting");
   const { user } = useSession();
   const admin = user.role === "ADMIN";
   const router = useRouter();
@@ -54,7 +55,7 @@ function NewCampaign() {
   };
 
   return (
-    <Page title="New voting campaign" subtitle="Add the details now; categories and nominees come next." back={{ href: "/dashboard/voting", label: "Voting" }}>
+    <Page title="New voting campaign" subtitle="Add the details now; categories and nominees come next." back={{ href: list, label: "Voting" }}>
       {error && <ErrorNote>{error}</ErrorNote>}
       <Card title="Details">
         {admin && (
@@ -85,7 +86,7 @@ function NewCampaign() {
         <PackageRows rows={packages} onChange={setPackages} />
       </Card>
       <div className="flex flex-wrap justify-end gap-2.5">
-        <LinkButton href="/dashboard/voting">Cancel</LinkButton>
+        <LinkButton href={list}>Cancel</LinkButton>
         <Button kind="primary" busy={busy} onClick={save}>Create campaign</Button>
       </div>
     </Page>
