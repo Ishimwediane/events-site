@@ -95,6 +95,9 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-600 text-sm text-center md:text-left">
               &copy; {year} {brand.name}. All rights reserved.
+              <span className="block sm:inline sm:ml-2">
+                Website and system by <span className="font-semibold text-gray-800">Vexta Ltd</span>
+              </span>
             </p>
             <div className="flex space-x-6 text-sm">
               <Link
