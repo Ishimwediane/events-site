@@ -6,7 +6,7 @@ import { api } from "@/platform/lib/api";
 import type { Earnings } from "@/platform/v2/admin/data";
 import { downloadCsv, rwf } from "@/platform/v2/format";
 import { RoleGate } from "@/platform/v2/Shell";
-import { Bar, Button, Card, Empty, ErrorNote, Field, inputClass, Loading, NotBuilt, Page, Table, Td } from "@/platform/v2/ui";
+import { Bar, Button, Card, Empty, ErrorNote, Field, inputClass, Loading, Page, Table, Td } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
 export default function AdminMoneyPage() {
@@ -151,7 +151,6 @@ function Money() {
         </div>
       </Card>
 
-      <NotBuilt>Marking the developer&apos;s 10% as collected, and Weflexfy paying it out automatically. Today Weflexfy sends 88% of every payment to the one payout MoMo number set on the server, so the 10% has to be paid over by hand.</NotBuilt>
     </Page>
   );
 }
