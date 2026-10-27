@@ -231,6 +231,43 @@ export const nominations = {
   callNumbers: ["+250 784 731 957", "+250 738 421 387"],
 } as const;
 
+/**
+ * Homepage "upcoming event" call, shown after the hero in place of the
+ * nominations section. Set `open` to false to hide it.
+ */
+export const upcoming = {
+  open: true,
+  name: "Film Screen Talent",
+  tagline: "Discover. Train. Showcase.",
+  flyer: "/image/filme.jpeg",
+  flyerAlt: "Film Screen Talent call for entries: acting and screenwriting, win RWF 2,000,000",
+  categories: [
+    {
+      title: "Acting / Monologue",
+      pitch: "Show your talent and own the stage.",
+      prize: "RWF 2,000,000",
+      requirements: [
+        "Register for the competition.",
+        "Prepare a powerful monologue that shows your acting ability.",
+        "Be ready to perform before the judges.",
+      ],
+    },
+    {
+      title: "Scripting / Screenwriting",
+      pitch: "Tell your story and bring it to life.",
+      prize: "RWF 2,000,000",
+      requirements: [
+        "Synopsis: a clear summary of the story, its main characters, conflict and resolution.",
+        "Screenplay: a well-structured script with dialogue, scenes and action.",
+        "Originality: your work must be original and created by you.",
+        "Writer's details: full name and contact information.",
+      ],
+    },
+  ],
+  email: "britonhussein12@gmail.com",
+  callNumbers: ["+250 725 298 870", "+250 798 868 211"],
+} as const;
+
 export function nominationsWhatsappUrl(): string {
   if (nominations.whatsappGroupLink) return nominations.whatsappGroupLink;
   return `https://wa.me/${nominations.whatsappNumber}?text=${encodeURIComponent(nominations.whatsappMessage)}`;
