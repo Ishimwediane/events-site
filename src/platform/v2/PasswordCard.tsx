@@ -34,10 +34,10 @@ export function PasswordCard() {
     <Card title="Password">
       <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
         <Field label="Current password">
-          <input type="password" autoComplete="current-password" className={inputClass} value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <input type="password" name="current-password-check" autoComplete="new-password" className={inputClass} value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
         <Field label="New password" hint="At least 8 characters, not only numbers.">
-          <input type="password" autoComplete="new-password" className={inputClass} value={next} onChange={(e) => setNext(e.target.value)} />
+          <input type="password" name="new-password" autoComplete="new-password" className={inputClass} value={next} onChange={(e) => setNext(e.target.value)} />
         </Field>
       </div>
       {err && <ErrorNote>{err}</ErrorNote>}

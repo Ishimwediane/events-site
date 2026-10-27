@@ -60,7 +60,7 @@ function Organisation() {
         </label>
       </div>
       <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-        <Field label="Organisation name"><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Organisation name"><input name="organization" autoComplete="organization" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Login email" hint="Ask Ozone Events to change it."><input className={inputClass} value={(company as { email?: string } | null)?.email ?? ""} disabled /></Field>
       </div>
       <Field label="About your organisation"><textarea rows={3} className={`${inputClass} resize-y`} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
@@ -96,8 +96,8 @@ function YourName() {
     <Card title="Your name">
       {error && <ErrorNote>{error}</ErrorNote>}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name"><input className={inputClass} value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
-        <Field label="Last name"><input className={inputClass} value={last} onChange={(e) => setLast(e.target.value)} /></Field>
+        <Field label="First name"><input name="given-name" autoComplete="given-name" className={inputClass} value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
+        <Field label="Last name"><input name="family-name" autoComplete="family-name" className={inputClass} value={last} onChange={(e) => setLast(e.target.value)} /></Field>
       </div>
       <div className="flex items-center gap-3"><Button busy={busy} onClick={save}>Save name</Button><Saved text={saved} /></div>
     </Card>
