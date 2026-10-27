@@ -50,6 +50,8 @@ export type Client = Money & {
   user_id: string | null; email: string; is_active: boolean; authorization: string; can_use_qr: boolean;
   /** The agreed share of what customers pay; null = everything after Weflexfy and the developer. */
   organiser_percent: string | null;
+  /** Weflexfy and developer shares for this organiser; null = the standard ones. */
+  gateway_percent: string | null; developer_percent: string | null;
   created_at: string; events: number; campaigns: number; live: number;
 };
 

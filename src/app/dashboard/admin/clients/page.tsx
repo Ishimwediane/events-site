@@ -19,8 +19,8 @@ export default function ClientsPage() {
   );
 }
 
-type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean; active: boolean; percent: string };
-const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true, active: true, percent: "" };
+type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean; active: boolean; percent: string; gateway: string; developer: string };
+const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true, active: true, percent: "", gateway: "", developer: "" };
 
 function Clients() {
   const { data, error, loading, reload } = useLoad(async () => {
@@ -38,7 +38,7 @@ function Clients() {
   const open = (c: Client | "new") => {
     setEditing(c);
     setFormError("");
-    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr, active: c.is_active, percent: c.organiser_percent ?? "" });
+    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr, active: c.is_active, percent: c.organiser_percent ?? "", gateway: c.gateway_percent ?? "", developer: c.developer_percent ?? "" });
   };
 
   const save = async () => {
@@ -50,19 +50,20 @@ function Clients() {
       setBusy("");
       return;
     }
-    // Empty = no agreed share: they keep everything after Weflexfy and the developer.
-    const share = form.percent.trim() === "" ? null : form.percent.trim();
+    // Empty = not set: the standard Weflexfy / developer share, and the organiser keeps the rest.
+    const pct = (v: string) => (v.trim() === "" ? null : v.trim());
+    const deal = { organiser_percent: pct(form.percent), gateway_percent: pct(form.gateway), developer_percent: pct(form.developer) };
     try {
       if (editing === "new") {
         await api.post("/companies/admin/create/", {
           name: form.name, email: form.email, password: form.password, authorization: form.authorization, can_use_qr: form.can_use_qr,
-          organiser_percent: share,
+          ...deal,
         });
         setCreated(`${form.name} is ready. They log in at ${window.location.origin}/login with ${form.email} and the password you set, then create their own events and voting.`);
       } else if (editing) {
         await api.patch(`/companies/admin/${editing.id}/`, {
           name: form.name, description: form.description, authorization: form.authorization, can_use_qr: form.can_use_qr,
-          organiser_percent: share,
+          ...deal,
         });
         if (editing.user_id && (form.active !== editing.is_active || form.password)) {
           await api.patch(`/users/${editing.user_id}/`, { is_active: form.active, ...(form.password ? { password: form.password } : {}) });
@@ -136,6 +137,9 @@ function Clients() {
                 <Mini label="Ozone gets" value={rwfLabel(c.ozone)} green />
               </div>
               <div className="text-xs text-[#5B6472]">
+                Deal: Weflexfy {c.gateway_percent ?? "12"}% · developer {c.developer_percent ?? "10"}%{c.gateway_percent === null && c.developer_percent === null ? " (standard)" : ""}
+              </div>
+              <div className="text-xs text-[#5B6472]">
                 Can use: {AUTH_LABEL[c.authorization] || c.authorization}{c.can_use_qr ? " · QR scanner" : ""}
               </div>
               <div className="mt-auto pt-1 flex flex-wrap gap-2">
@@ -190,12 +194,23 @@ function Clients() {
             </Field>
           </>
         )}
-        <Field
-          label="Their share (%)"
-          hint="Of what customers pay, as agreed with Ozone. Weflexfy 12% and the developer 10% come off first; Ozone keeps the rest. Leave empty and they keep everything after those 22%."
-        >
-          <input type="number" inputMode="decimal" min={0} max={78} step="0.01" className={inputClass} value={form.percent} onChange={(e) => set({ percent: e.target.value })} placeholder="e.g. 50" />
-        </Field>
+        <div className="flex flex-col gap-3 p-3.5 rounded-xl bg-[#F7F8FA]">
+          <span className="text-sm font-semibold text-[#08283B]">Money deal (% of what customers pay)</span>
+          <div className="grid grid-cols-3 gap-2.5">
+            <Field label="Weflexfy">
+              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.gateway} onChange={(e) => set({ gateway: e.target.value })} placeholder="12" />
+            </Field>
+            <Field label="Developer">
+              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.developer} onChange={(e) => set({ developer: e.target.value })} placeholder="10" />
+            </Field>
+            <Field label="Organiser">
+              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.percent} onChange={(e) => set({ percent: e.target.value })} placeholder="the rest" />
+            </Field>
+          </div>
+          <span className="text-xs text-[#5B6472]">
+            Ozone keeps what is left: {ozoneLeft(form)}. Empty Weflexfy or developer = the standard 12% / 10%; empty organiser = they keep everything after Weflexfy and the developer.
+          </span>
+        </div>
         <Field label="They can use">
           <select className={inputClass} value={form.authorization} onChange={(e) => set({ authorization: e.target.value })}>
             <option value="BOTH">Voting and tickets</option>
@@ -215,6 +230,15 @@ function Clients() {
       </Modal>
     </Page>
   );
+}
+
+/** What Ozone keeps under the deal typed in the form, e.g. "28%". */
+function ozoneLeft(f: Form): string {
+  const n = (v: string, standard: number) => (v.trim() === "" ? standard : Number(v));
+  const fees = n(f.gateway, 12) + n(f.developer, 10);
+  if (f.percent.trim() === "") return "0%";
+  const left = Math.round((100 - fees - Number(f.percent)) * 100) / 100;
+  return left < 0 ? "too much — the total is over 100%" : `${left}%`;
 }
 
 function Mini({ label, value, green }: { label: string; value: string; green?: boolean }) {

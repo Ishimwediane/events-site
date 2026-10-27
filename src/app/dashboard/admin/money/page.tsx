@@ -54,9 +54,6 @@ function Money() {
 
   const { report: r, byMonth } = data;
   const t = r.totals;
-  const gatewayPct = Number(r.shares.gateway) || 12;
-  const viaWeflexfy = (Number(t.gateway) * 100) / gatewayPct;
-  const oldLmb = Math.max(0, Number(t.gross) - viaWeflexfy);
 
   // One row per client, summing their events and campaigns.
   const clients = new Map<string, { gross: number; gateway: number; developer: number; organiser: number; ozone: number; items: string[] }>();
@@ -90,7 +87,7 @@ function Money() {
             onClick={() =>
               downloadCsv(
                 "ozone-money.csv",
-                ["Organiser", "Event or campaign", "Type", "Customers paid", `Weflexfy ${r.shares.gateway}%`, `Developer ${r.shares.developer}%`, "Organiser", "Ozone"],
+                ["Organiser", "Event or campaign", "Type", "Customers paid", "Weflexfy", "Developer", "Organiser", "Ozone"],
                 r.items.map((i) => [i.company, i.title, i.type, i.gross, i.gateway, i.developer, i.organiser, i.ozone]),
               )
             }
@@ -101,15 +98,15 @@ function Money() {
       }
     >
       <section className="bg-white border border-[#E5E7EB] rounded-2xl grid overflow-hidden" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-        <Cell label="Customers paid" value={rwf(t.gross)} note={`Weflexfy ${rwf(viaWeflexfy)} · old LMB ${rwf(oldLmb)}`} />
-        <Cell label={`Weflexfy fee (${Number(r.shares.gateway)}%)`} value={rwf(t.gateway)} note="Taken by Weflexfy" />
-        <Cell label={`Developer (${Number(r.shares.developer)}%)`} value={rwf(t.developer)} note="Not collected automatically yet" dark />
-        <Cell label="Organisers" value={rwf(t.organiser)} note="Their agreed share" />
+        <Cell label="Customers paid" value={rwf(t.gross)} note={`${t.transactions ?? 0} payments`} />
+        <Cell label="Weflexfy" value={rwf(t.gateway)} note="Each organiser’s agreed Weflexfy %" />
+        <Cell label="Developer" value={rwf(t.developer)} note="Each organiser’s agreed developer %" />
+        <Cell label="Organisers" value={rwf(t.organiser)} note="Their agreed share" dark />
         <Cell label="Ozone" value={rwf(t.ozone)} note="What is left for Ozone" />
       </section>
 
       <Card padded={false} title="By organiser">
-        <Table head={["Organiser", "Customers paid", `Weflexfy ${Number(r.shares.gateway)}%`, `Developer ${Number(r.shares.developer)}%`, "Organiser", "Ozone"]} minWidth={860}>
+        <Table head={["Organiser", "Customers paid", "Weflexfy", "Developer", "Organiser", "Ozone"]} minWidth={860}>
           {rows.map(([name, c]) => (
             <tr key={name}>
               <Td first><b>{name}</b><br /><span className="text-xs text-[#5B6472]">{c.items.join(" · ")}</span></Td>

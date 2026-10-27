@@ -29,8 +29,8 @@ function Overview() {
     <Page title="Platform overview" subtitle="All organisers, all events and voting, in one place.">
       <StatGrid min={240}>
         <Stat dark label="Money through the platform" value={rwf(o.totals.gross)} unit="RWF" note={`All time · ${o.clients} ${o.clients === 1 ? "organiser" : "organisers"}`} />
-        <Stat label={`Developer share (${Number(o.shares.developer)}%)`} value={rwf(o.totals.developer)} unit="RWF" tone="green" note="From Weflexfy payments only" />
-        <Stat label={`Weflexfy share (${Number(o.shares.gateway)}%)`} value={rwf(o.totals.gateway)} unit="RWF" note="Weflexfy's fee on its payments" />
+        <Stat label="Developer share" value={rwf(o.totals.developer)} unit="RWF" note="Each organiser’s agreed developer %, Weflexfy payments only" />
+        <Stat label="Weflexfy share" value={rwf(o.totals.gateway)} unit="RWF" note="Each organiser’s agreed Weflexfy %" />
         <Stat label="Ozone share" value={rwf(o.totals.ozone)} unit="RWF" tone="green" note="After Weflexfy, the developer and each organiser’s agreed share" />
       </StatGrid>
 
