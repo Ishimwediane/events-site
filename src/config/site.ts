@@ -266,7 +266,14 @@ export const upcoming = {
   ],
   email: "britonhussein12@gmail.com",
   callNumbers: ["+250 725 298 870", "+250 798 868 211"],
+  /** WhatsApp chat for entrants, in international format without "+". */
+  whatsappNumber: "250725298870",
+  whatsappMessage: "Hello, I would like to register for Film Screen Talent.",
 } as const;
+
+export function upcomingWhatsappUrl(): string {
+  return `https://wa.me/${upcoming.whatsappNumber}?text=${encodeURIComponent(upcoming.whatsappMessage)}`;
+}
 
 export function nominationsWhatsappUrl(): string {
   if (nominations.whatsappGroupLink) return nominations.whatsappGroupLink;

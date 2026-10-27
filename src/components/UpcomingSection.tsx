@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Mail, Phone, Trophy } from "lucide-react";
+import { Mail, MessageCircle, Phone, Trophy } from "lucide-react";
 import ScrollReveal from "./ScrollReveal";
-import { upcoming } from "@/config/site";
+import { upcoming, upcomingWhatsappUrl } from "@/config/site";
 
 /** Homepage call for the next upcoming event; hidden when `upcoming.open` is false. */
 export default function UpcomingSection() {
@@ -67,6 +67,15 @@ export default function UpcomingSection() {
                   <Mail className="w-5 h-5" />
                   Register now
                 </a>
+                <a
+                  href={upcomingWhatsappUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#25D366] hover:bg-[#1DA851] text-white font-bold px-8 py-3 rounded-lg transition-all duration-300 shadow-xl flex items-center gap-2 text-[9px] tracking-[.3em] uppercase"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Chat on WhatsApp
+                </a>
               </div>
 
               <div className="border-t border-gray-100 pt-5 text-left">
@@ -75,6 +84,15 @@ export default function UpcomingSection() {
                   <a href={`mailto:${upcoming.email}`} className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold hover:text-[var(--orange-accent)] transition-colors">
                     <Mail className="w-4 h-4 text-[var(--orange-accent)]" />
                     {upcoming.email}
+                  </a>
+                  <a
+                    href={upcomingWhatsappUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold hover:text-[#1DA851] transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                    WhatsApp +250 725 298 870
                   </a>
                   {upcoming.callNumbers.map((number) => (
                     <a
