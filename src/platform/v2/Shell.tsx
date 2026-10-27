@@ -7,7 +7,7 @@
  */
 import {
   Activity, BadgeDollarSign, Code2, LayoutDashboard, LogOut, Menu,
-  ScanLine, Settings, Ticket, Users, Vote, Wallet,
+  ScanLine, Settings, Ticket, Vote, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -61,7 +61,6 @@ function menuFor(user: SessionUser, company: Company | null): Item[] {
     ...(voting ? [{ href: "/dashboard/voting", label: "Voting", icon: Vote }] : []),
     ...(events ? [{ href: "/dashboard/tickets", label: "Tickets", icon: Ticket }] : []),
     ...(events ? [{ href: "/dashboard/checkins", label: "Check-ins", icon: ScanLine }] : []),
-    { href: "/dashboard/customers", label: "Customers", icon: Users },
     { href: "/dashboard/money", label: "Money", icon: Wallet },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ];
