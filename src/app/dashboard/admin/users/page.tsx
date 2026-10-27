@@ -193,7 +193,7 @@ function Users() {
           <Field label="First name"><input className={inputClass} value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} /></Field>
           <Field label="Last name"><input className={inputClass} value={form.last_name} onChange={(e) => set({ last_name: e.target.value })} /></Field>
         </div>
-        <Field label="Role" hint={form.role === "COMPANY" && !editingUser ? "To add a client with their organisation, use Clients → + Add client instead." : undefined}>
+        <Field label="Role" hint={form.role === "COMPANY" && !editingUser ? "To add an organiser who can log in and create events, use Organisers → + Add organiser instead." : undefined}>
           <select className={inputClass} value={form.role} onChange={(e) => set({ role: e.target.value })} disabled={editingUser?.id === me.id}>
             <option value="GATE_STAFF">Door staff (scan tickets only)</option>
             <option value="COMPANY">Client (organiser)</option>
