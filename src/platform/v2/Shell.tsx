@@ -94,7 +94,7 @@ export function useListHref(kind: "voting" | "events"): string {
 
 function Brand({ user, company }: { user: SessionUser; company: Company | null }) {
   const name = user.role === "ADMIN" ? "Ozone Events" : user.role === "DEVELOPER" ? "Developer" : company?.name || "Your organisation";
-  const sub = user.role === "ADMIN" ? "Platform admin" : user.role === "DEVELOPER" ? "Vexta Ltd" : "Events & voting";
+  const sub = user.role === "ADMIN" ? "Admin" : user.role === "DEVELOPER" ? "Vexta Ltd" : "Events & voting";
   const letter = user.role === "DEVELOPER" ? <Code2 className="w-5 h-5" /> : (name[0] || "O").toUpperCase();
   return (
     <div className="flex items-center gap-3 px-1.5">

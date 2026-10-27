@@ -84,7 +84,8 @@ function Clients() {
   if (error || !data) return <Page title="Organisers"><ErrorNote>{error}</ErrorNote></Page>;
 
   const q = search.trim().toLowerCase();
-  const clients = data.clients.filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q));
+  // Only organisers with a login; the company Ozone holds its own events under is not one.
+  const clients = data.clients.filter((c) => c.user_id && (!q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)));
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
 
   return (
@@ -103,40 +104,41 @@ function Clients() {
       {created && <Notice>{created}</Notice>}
       {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
-      <section className="flex flex-col gap-3.5">
+      {!clients.length && <Card><p className="m-0 text-sm text-[#5B6472]">No organisers match.</p></Card>}
+      <section className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
         {clients.map((c) => (
-          <article key={c.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-[22px] flex flex-col gap-[18px]">
-            <div className="flex flex-wrap justify-between gap-3 items-start">
-              <div className="flex gap-3.5 items-center min-w-0">
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-[#08283B] text-[#F39C12] flex items-center justify-center font-heading font-bold text-xl">{c.name[0]?.toUpperCase()}</div>
-                <div className="min-w-0">
-                  <h2 className="m-0 text-[17px] font-semibold">{c.name}</h2>
-                  <span className="text-[13px] text-[#5B6472] break-all">{c.email || "No login"} · since {day(c.created_at)}</span>
-                </div>
+          <article key={c.id} className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+            <div className="h-24 bg-[#0F3A52] flex items-end justify-between px-5 pb-3">
+              <div className="w-14 h-14 -mb-8 rounded-xl bg-[#08283B] border-4 border-white text-[#F39C12] flex items-center justify-center font-heading font-bold text-2xl">{c.name[0]?.toUpperCase()}</div>
+              {c.is_active ? <Badge tone="green">Can log in</Badge> : <Badge tone="red">Paused</Badge>}
+            </div>
+            <div className="px-5 pt-10 pb-5 flex flex-col gap-3 flex-1">
+              <div className="min-w-0">
+                <h2 className="m-0 font-heading text-base font-semibold text-[#08283B]">{c.name}</h2>
+                <span className="text-[13px] text-[#5B6472] break-all">{c.email}</span>
+                <div className="text-xs text-[#5B6472] mt-0.5">Since {day(c.created_at)}</div>
               </div>
-              {!c.user_id ? <Badge>Ozone&apos;s own</Badge> : c.is_active ? <Badge tone="green">Can log in</Badge> : <Badge tone="red">Paused</Badge>}
-            </div>
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-              <Mini label="Money in" value={rwfLabel(c.gross)} />
-              <Mini label="Developer 10%" value={rwfLabel(c.developer)} green />
-              <Mini label="Can use" value={`${AUTH_LABEL[c.authorization] || c.authorization}${c.can_use_qr ? " · QR scanner" : ""}`} />
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              <Button onClick={() => open(c)}>Edit</Button>
-              {c.user_id && <Button
-                kind="danger"
-                busy={busy === c.id}
-                onClick={() => {
-                  if (!window.confirm(`Delete ${c.name} and their login? This cannot be undone.`)) return;
-                  act(c.id, () => api.delete(`/companies/admin/${c.id}/`));
-                }}
-              >
-                Delete
-              </Button>}
+              <div className="grid grid-cols-2 gap-2.5">
+                <Mini label="Money in" value={rwfLabel(c.gross)} />
+                <Mini label="Can use" value={`${AUTH_LABEL[c.authorization] || c.authorization}${c.can_use_qr ? " · QR" : ""}`} />
+              </div>
+              <div className="mt-auto pt-1 flex flex-wrap gap-2">
+                <Button small onClick={() => open(c)}>Edit</Button>
+                <Button
+                  kind="danger"
+                  small
+                  busy={busy === c.id}
+                  onClick={() => {
+                    if (!window.confirm(`Delete ${c.name} and their login? This cannot be undone.`)) return;
+                    act(c.id, () => api.delete(`/companies/admin/${c.id}/`));
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
           </article>
         ))}
-        {!clients.length && <Card><p className="m-0 text-sm text-[#5B6472]">No organisers match.</p></Card>}
       </section>
       <Modal
         open={editing !== null}
