@@ -15,7 +15,11 @@ export async function fetchAll<T>(url: string): Promise<T[]> {
   return out;
 }
 
-export type Money = { gross: string; gateway: string; developer: string; host: string; transactions?: number };
+/** One split: Weflexfy and developer (fixed), then the organiser (agreed share) and Ozone (the rest). */
+export type Money = {
+  gross: string; gateway: string; developer: string; host: string; organiser: string; ozone: string; ozone_team: string;
+  transactions?: number;
+};
 
 export type Payment = {
   ref: string; date: string; amount: string; service: "VOTE" | "TICKET"; method: string;
@@ -44,6 +48,8 @@ export type Overview = {
 export type Client = Money & {
   id: string; name: string; slug: string; description: string; logo: string | null;
   user_id: string | null; email: string; is_active: boolean; authorization: string; can_use_qr: boolean;
+  /** The agreed share of what customers pay; null = everything after Weflexfy and the developer. */
+  organiser_percent: string | null;
   created_at: string; events: number; campaigns: number; live: number;
 };
 

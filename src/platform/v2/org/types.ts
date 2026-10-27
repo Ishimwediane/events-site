@@ -12,16 +12,17 @@ export type EventItem = {
   organizer_name?: string; tickets: TicketTier[];
 };
 
+/** What an organiser is shown: their part and the Ozone team's (Weflexfy, developer and Ozone together). */
 export type Earnings = {
-  shares: { gateway: string; developer: string; host: string };
+  shares: { organiser: string; ozone_team: string };
   totals: {
-    gross: string; gateway: string; developer: string; host: string; transactions: number; tickets: number;
+    gross: string; organiser: string; ozone_team: string; transactions: number; tickets: number;
     by_method: Record<string, string>;
   };
-  items: { type: string; id: string; title: string; gross: string; host: string; transactions: number; tickets: number }[];
+  items: { type: string; id: string; title: string; gross: string; organiser: string; ozone_team: string; transactions: number; tickets: number }[];
   transactions: {
     ref: string; date: string; type: string; title: string; service: string; method: string;
-    gross: string; gateway: string; developer: string; host: string;
+    gross: string; organiser: string; ozone_team: string;
   }[];
 };
 

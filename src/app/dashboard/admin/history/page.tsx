@@ -14,7 +14,7 @@ type Kind = "payments" | "votes" | "scans";
 type PaymentRow = {
   ref: string; date: string; status: string; amount: string; service: "VOTE" | "TICKET"; method: string;
   via_weflexfy: boolean; title: string; client: string; item: string; phone: string; email: string;
-  shares: { gross: string; gateway: string; developer: string; host: string } | null;
+  shares: { gross: string; gateway: string; developer: string; host: string; organiser: string; ozone: string } | null;
   payouts: { transfer: string; fee: boolean; status: string }[];
 };
 type VoteRow = { id: string; date: string; votes: number; reason: string; nominee: string; category: string; campaign: string; client: string; by: string };
@@ -74,9 +74,9 @@ function HistoryPage() {
   const exportCsv = () => {
     if (!h) return;
     if (kind === "payments") {
-      downloadCsv("payments.csv", ["When", "Reference", "Status", "Client", "For", "Item", "Paid by", "Phone", "Amount", "Weflexfy", "Developer", "Organiser"],
+      downloadCsv("payments.csv", ["When", "Reference", "Status", "Client", "For", "Item", "Paid by", "Phone", "Amount", "Weflexfy", "Developer", "Organiser", "Ozone"],
         (h.rows as PaymentRow[]).map((p) => [when(p.date), p.ref, PAY_LABEL[p.status] ?? p.status, p.client, p.title, p.item, methodLabel[p.method] ?? p.method, p.phone, p.amount,
-          p.shares?.gateway ?? "", p.shares?.developer ?? "", p.shares?.host ?? ""]));
+          p.shares?.gateway ?? "", p.shares?.developer ?? "", p.shares?.organiser ?? "", p.shares?.ozone ?? ""]));
     } else if (kind === "votes") {
       downloadCsv("votes-added-by-hand.csv", ["When", "Client", "Campaign", "Category", "Nominee", "Votes", "Added by", "Reason"],
         (h.rows as VoteRow[]).map((v) => [when(v.date), v.client, v.campaign, v.category, v.nominee, v.votes, v.by, v.reason]));
@@ -159,8 +159,8 @@ function HistoryPage() {
                   <Td className="text-right font-semibold tabular-nums whitespace-nowrap">{rwfLabel(p.amount)}</Td>
                   <Td className="text-xs text-[#374151] whitespace-nowrap tabular-nums">
                     {p.shares ? (p.via_weflexfy
-                      ? <>Weflexfy {rwfLabel(p.shares.gateway)}<br />Developer {rwfLabel(p.shares.developer)}<br />Organiser {rwfLabel(p.shares.host)}</>
-                      : <>Old LMB payment<br />Organiser {rwfLabel(p.shares.host)}</>) : "—"}
+                      ? <>Weflexfy {rwfLabel(p.shares.gateway)}<br />Developer {rwfLabel(p.shares.developer)}<br />Organiser {rwfLabel(p.shares.organiser)}<br />Ozone {rwfLabel(p.shares.ozone)}</>
+                      : <>Old LMB payment<br />Organiser {rwfLabel(p.shares.organiser)}<br />Ozone {rwfLabel(p.shares.ozone)}</>) : "—"}
                   </Td>
                   <Td last>{payout(p)}</Td>
                 </tr>

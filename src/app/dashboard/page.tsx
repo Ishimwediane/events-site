@@ -79,10 +79,10 @@ function Overview() {
         <Stat dark label="Money received" value={rwf(earnings.totals.gross)} unit="RWF" note={`${earnings.totals.transactions} payments`} />
         <Stat
           label="Your revenue"
-          value={rwf(earnings.totals.host)}
+          value={rwf(earnings.totals.organiser)}
           unit="RWF"
           tone="green"
-          note={`After Weflexfy ${earnings.shares.gateway}% and platform ${earnings.shares.developer}%`}
+          note={`Your ${earnings.shares.organiser}% · Ozone team ${rwfLabel(earnings.totals.ozone_team)}`}
         />
         <Stat label="Votes cast" value={votes.toLocaleString("en-GB")} note={live ? `${handVotes.toLocaleString("en-GB")} added by hand` : "No campaign yet"} />
         <Stat label="Tickets sold online" value={earnings.totals.tickets.toLocaleString("en-GB")} />

@@ -59,13 +59,14 @@ function Money() {
   const oldLmb = Math.max(0, Number(t.gross) - viaWeflexfy);
 
   // One row per client, summing their events and campaigns.
-  const clients = new Map<string, { gross: number; gateway: number; developer: number; host: number; items: string[] }>();
+  const clients = new Map<string, { gross: number; gateway: number; developer: number; organiser: number; ozone: number; items: string[] }>();
   for (const i of r.items) {
-    const c = clients.get(i.company) || { gross: 0, gateway: 0, developer: 0, host: 0, items: [] };
+    const c = clients.get(i.company) || { gross: 0, gateway: 0, developer: 0, organiser: 0, ozone: 0, items: [] };
     c.gross += Number(i.gross);
     c.gateway += Number(i.gateway);
     c.developer += Number(i.developer);
-    c.host += Number(i.host);
+    c.organiser += Number(i.organiser);
+    c.ozone += Number(i.ozone);
     c.items.push(i.title);
     clients.set(i.company, c);
   }
@@ -75,7 +76,7 @@ function Money() {
   return (
     <Page
       title="Platform money"
-      subtitle="Every client's money, and how it is shared."
+      subtitle="Every organiser’s money: Weflexfy and the developer first, then the organiser’s agreed share, and the rest is Ozone’s."
       actions={
         <>
           <Field label="Period">
@@ -89,8 +90,8 @@ function Money() {
             onClick={() =>
               downloadCsv(
                 "ozone-money.csv",
-                ["Client", "Event or campaign", "Type", "Customers paid", `Weflexfy ${r.shares.gateway}%`, `Developer ${r.shares.developer}%`, "Client keeps"],
-                r.items.map((i) => [i.company, i.title, i.type, i.gross, i.gateway, i.developer, i.host]),
+                ["Organiser", "Event or campaign", "Type", "Customers paid", `Weflexfy ${r.shares.gateway}%`, `Developer ${r.shares.developer}%`, "Organiser", "Ozone"],
+                r.items.map((i) => [i.company, i.title, i.type, i.gross, i.gateway, i.developer, i.organiser, i.ozone]),
               )
             }
           >
@@ -103,18 +104,20 @@ function Money() {
         <Cell label="Customers paid" value={rwf(t.gross)} note={`Weflexfy ${rwf(viaWeflexfy)} · old LMB ${rwf(oldLmb)}`} />
         <Cell label={`Weflexfy fee (${Number(r.shares.gateway)}%)`} value={rwf(t.gateway)} note="Taken by Weflexfy" />
         <Cell label={`Developer (${Number(r.shares.developer)}%)`} value={rwf(t.developer)} note="Not collected automatically yet" dark />
-        <Cell label="Clients keep" value={rwf(t.host)} note={`${Number(r.shares.host)}% of Weflexfy + all LMB`} />
+        <Cell label="Organisers" value={rwf(t.organiser)} note="Their agreed share" />
+        <Cell label="Ozone" value={rwf(t.ozone)} note="What is left for Ozone" />
       </section>
 
-      <Card padded={false} title="By client">
-        <Table head={["Client", "Customers paid", `Weflexfy ${Number(r.shares.gateway)}%`, `Developer ${Number(r.shares.developer)}%`, "Client keeps"]} minWidth={760}>
+      <Card padded={false} title="By organiser">
+        <Table head={["Organiser", "Customers paid", `Weflexfy ${Number(r.shares.gateway)}%`, `Developer ${Number(r.shares.developer)}%`, "Organiser", "Ozone"]} minWidth={860}>
           {rows.map(([name, c]) => (
             <tr key={name}>
               <Td first><b>{name}</b><br /><span className="text-xs text-[#5B6472]">{c.items.join(" · ")}</span></Td>
               <Td className="text-right font-semibold tabular-nums">{rwf(c.gross)}</Td>
               <Td className="text-right tabular-nums text-[#374151]">{rwf(c.gateway)}</Td>
               <Td className="text-right tabular-nums font-semibold text-[#0B6B43]">{rwf(c.developer)}</Td>
-              <Td last className="text-right tabular-nums">{rwf(c.host)}</Td>
+              <Td className="text-right tabular-nums">{rwf(c.organiser)}</Td>
+              <Td last className="text-right tabular-nums font-semibold">{rwf(c.ozone)}</Td>
             </tr>
           ))}
         </Table>
@@ -122,7 +125,7 @@ function Money() {
       </Card>
 
       <Card padded={false} title="By event and campaign">
-        <Table head={["Event or campaign", "Client", "Customers paid", "Weflexfy", "Developer", "Client keeps"]} minWidth={820}>
+        <Table head={["Event or campaign", "Organiser", "Customers paid", "Weflexfy", "Developer", "Organiser", "Ozone"]} minWidth={920}>
           {r.items.map((i) => (
             <tr key={`${i.type}-${i.id}`}>
               <Td first><b>{i.title}</b><br /><span className="text-xs text-[#5B6472]">{i.type === "campaign" ? "Voting" : `Tickets · ${i.tickets} sold online`}</span></Td>
@@ -130,7 +133,8 @@ function Money() {
               <Td className="text-right font-semibold tabular-nums">{rwf(i.gross)}</Td>
               <Td className="text-right tabular-nums text-[#374151]">{rwf(i.gateway)}</Td>
               <Td className="text-right tabular-nums text-[#0B6B43]">{rwf(i.developer)}</Td>
-              <Td last className="text-right tabular-nums">{rwf(i.host)}</Td>
+              <Td className="text-right tabular-nums">{rwf(i.organiser)}</Td>
+              <Td last className="text-right tabular-nums font-semibold">{rwf(i.ozone)}</Td>
             </tr>
           ))}
         </Table>

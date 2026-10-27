@@ -26,14 +26,13 @@ function Money() {
   if (loading && !data) return <Loading />;
   if (!data) return <Page title="Money"><ErrorNote>{error}</ErrorNote></Page>;
   const t = data.totals;
-  const fees = Number(t.gateway) + Number(t.developer);
   const rows = data.transactions.filter((r) => !kind || r.service === kind);
   const byMethod = Object.entries(t.by_method).filter(([, v]) => Number(v) > 0);
 
   return (
     <Page
       title="Money"
-      subtitle="What came in, the fees, and what is yours."
+      subtitle="What came in, the Ozone team’s part, and what is yours."
       actions={
         <>
           <Field label={<span className="text-xs text-[#5B6472]">Period</span>}>
@@ -46,7 +45,7 @@ function Money() {
           <Button
             onClick={() =>
               downloadCsv("money-report.csv", ["Event or campaign", "Type", "Payments", "Money in (RWF)", "You keep (RWF)"],
-                data.items.map((i) => [i.title, i.type === "event" ? "Tickets" : "Voting", i.transactions, Math.round(Number(i.gross)), Math.round(Number(i.host))]))
+                data.items.map((i) => [i.title, i.type === "event" ? "Tickets" : "Voting", i.transactions, Math.round(Number(i.gross)), Math.round(Number(i.organiser))]))
             }
           >
             Download report
@@ -62,14 +61,14 @@ function Money() {
           <span className="text-xs text-[#5B6472]">{t.transactions} payments</span>
         </div>
         <div className="p-[22px] flex flex-col gap-1.5 border-r border-[#F1F2F4]">
-          <span className="text-[13px] text-[#5B6472]">Fees</span>
-          <span className="font-heading text-[28px] font-bold text-[#B42318] tabular-nums">− {rwf(fees)}</span>
-          <span className="text-xs text-[#5B6472]">Weflexfy {rwf(t.gateway)} · Platform {rwf(t.developer)}</span>
+          <span className="text-[13px] text-[#5B6472]">Ozone team</span>
+          <span className="font-heading text-[28px] font-bold text-[#B42318] tabular-nums">− {rwf(t.ozone_team)}</span>
+          <span className="text-xs text-[#5B6472]">{data.shares.ozone_team}% of what customers paid</span>
         </div>
         <div className="p-[22px] flex flex-col gap-1.5 bg-[#08283B]">
           <span className="text-[13px] text-[#C9D4DC]">Left for you</span>
-          <span className="font-heading text-[28px] font-bold text-[#6EE7B7] tabular-nums">{rwf(t.host)}</span>
-          <span className="text-xs text-[#C9D4DC]">RWF, after fees</span>
+          <span className="font-heading text-[28px] font-bold text-[#6EE7B7] tabular-nums">{rwf(t.organiser)}</span>
+          <span className="text-xs text-[#C9D4DC]">{data.shares.organiser}% of what customers paid</span>
         </div>
       </section>
 
@@ -80,7 +79,7 @@ function Money() {
               <tr key={`${i.type}-${i.id}`}>
                 <Td first><b>{i.title}</b><br /><span className="text-xs text-[#5B6472]">{i.type === "event" ? "Tickets" : "Voting"} · {i.transactions} payments</span></Td>
                 <Td className="tabular-nums">{rwf(i.gross)}</Td>
-                <Td last className="text-right font-semibold text-[#0B6B43] tabular-nums">{rwf(i.host)}</Td>
+                <Td last className="text-right font-semibold text-[#0B6B43] tabular-nums">{rwf(i.organiser)}</Td>
               </tr>
             ))}
           </Table>
@@ -115,7 +114,7 @@ function Money() {
               <Td>{r.service === "VOTE" ? "Votes" : "Ticket"} · {r.title}</Td>
               <Td><Badge>{methodLabel[r.method] ?? r.method}</Badge></Td>
               <Td className="text-right font-semibold text-[#0B6B43] tabular-nums">+ {rwf(r.gross)}</Td>
-              <Td last className="text-right tabular-nums">{rwf(r.host)}</Td>
+              <Td last className="text-right tabular-nums">{rwf(r.organiser)}</Td>
             </tr>
           ))}
         </Table>

@@ -19,8 +19,8 @@ export default function ClientsPage() {
   );
 }
 
-type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean; active: boolean };
-const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true, active: true };
+type Form = { name: string; email: string; password: string; description: string; authorization: string; can_use_qr: boolean; active: boolean; percent: string };
+const EMPTY: Form = { name: "", email: "", password: "", description: "", authorization: "BOTH", can_use_qr: true, active: true, percent: "" };
 
 function Clients() {
   const { data, error, loading, reload } = useLoad(async () => {
@@ -38,7 +38,7 @@ function Clients() {
   const open = (c: Client | "new") => {
     setEditing(c);
     setFormError("");
-    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr, active: c.is_active });
+    setForm(c === "new" ? EMPTY : { ...EMPTY, name: c.name, email: c.email, description: c.description || "", authorization: c.authorization, can_use_qr: c.can_use_qr, active: c.is_active, percent: c.organiser_percent ?? "" });
   };
 
   const save = async () => {
@@ -50,15 +50,19 @@ function Clients() {
       setBusy("");
       return;
     }
+    // Empty = no agreed share: they keep everything after Weflexfy and the developer.
+    const share = form.percent.trim() === "" ? null : form.percent.trim();
     try {
       if (editing === "new") {
         await api.post("/companies/admin/create/", {
           name: form.name, email: form.email, password: form.password, authorization: form.authorization, can_use_qr: form.can_use_qr,
+          organiser_percent: share,
         });
         setCreated(`${form.name} is ready. They log in at ${window.location.origin}/login with ${form.email} and the password you set, then create their own events and voting.`);
       } else if (editing) {
         await api.patch(`/companies/admin/${editing.id}/`, {
           name: form.name, description: form.description, authorization: form.authorization, can_use_qr: form.can_use_qr,
+          organiser_percent: share,
         });
         if (editing.user_id && (form.active !== editing.is_active || form.password)) {
           await api.patch(`/users/${editing.user_id}/`, { is_active: form.active, ...(form.password ? { password: form.password } : {}) });
@@ -127,7 +131,12 @@ function Clients() {
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <Mini label="Money in" value={rwfLabel(c.gross)} />
-                <Mini label="Can use" value={`${AUTH_LABEL[c.authorization] || c.authorization}${c.can_use_qr ? " · QR" : ""}`} />
+                <Mini label="Their share" value={c.organiser_percent !== null ? `${c.organiser_percent}%` : "All after fees"} />
+                <Mini label="They get" value={rwfLabel(c.organiser)} />
+                <Mini label="Ozone gets" value={rwfLabel(c.ozone)} green />
+              </div>
+              <div className="text-xs text-[#5B6472]">
+                Can use: {AUTH_LABEL[c.authorization] || c.authorization}{c.can_use_qr ? " · QR scanner" : ""}
               </div>
               <div className="mt-auto pt-1 flex flex-wrap gap-2">
                 <Button small onClick={() => open(c)}>Edit</Button>
@@ -181,6 +190,12 @@ function Clients() {
             </Field>
           </>
         )}
+        <Field
+          label="Their share (%)"
+          hint="Of what customers pay, as agreed with Ozone. Weflexfy 12% and the developer 10% come off first; Ozone keeps the rest. Leave empty and they keep everything after those 22%."
+        >
+          <input type="number" inputMode="decimal" min={0} max={78} step="0.01" className={inputClass} value={form.percent} onChange={(e) => set({ percent: e.target.value })} placeholder="e.g. 50" />
+        </Field>
         <Field label="They can use">
           <select className={inputClass} value={form.authorization} onChange={(e) => set({ authorization: e.target.value })}>
             <option value="BOTH">Voting and tickets</option>
