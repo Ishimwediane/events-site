@@ -6,8 +6,8 @@
  * only the menu and the name under the logo change.
  */
 import {
-  Activity, BadgeDollarSign, Code2, LayoutDashboard, LogOut, Menu,
-  ScanLine, Settings, Ticket, Vote, Wallet,
+  Activity, BadgeDollarSign, Building2, CalendarDays, Code2, History, LayoutDashboard, LogOut, Menu,
+  ScanLine, Settings, Ticket, Users, Vote, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,6 +44,12 @@ function menuFor(user: SessionUser, company: Company | null): Item[] {
   if (user.role === "ADMIN") {
     return [
       { href: "/dashboard/admin", label: "Overview", icon: LayoutDashboard },
+      { href: "/dashboard/admin/clients", label: "Organisers", icon: Building2 },
+      { href: "/dashboard/admin/voting", label: "Voting", icon: Vote },
+      { href: "/dashboard/admin/events", label: "Events", icon: CalendarDays },
+      { href: "/dashboard/admin/history", label: "History", icon: History },
+      { href: "/dashboard/admin/money", label: "Money", icon: Wallet },
+      { href: "/dashboard/admin/users", label: "Users", icon: Users },
     ];
   }
   if (user.role === "DEVELOPER") {
