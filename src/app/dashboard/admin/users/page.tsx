@@ -77,6 +77,7 @@ function Users() {
       } else if (editing) {
         await api.patch(`/users/${editing.id}/`, {
           first_name: form.first_name, last_name: form.last_name, role: form.role, is_active: form.is_active,
+          ...(form.password ? { password: form.password } : {}),
         });
       }
     }, setFormError);
@@ -202,6 +203,11 @@ function Users() {
             <option value="CUSTOMER">Customer</option>
           </select>
         </Field>
+        {editingUser && editingUser.role !== "ADMIN" && (
+          <Field label="New password (optional)" hint="Leave empty to keep their current password. At least 8 characters.">
+            <input type="text" autoComplete="new-password" className={inputClass} value={form.password} onChange={(e) => set({ password: e.target.value })} />
+          </Field>
+        )}
         {editingUser && editingUser.id !== me.id && (
           <label className="flex gap-2 items-center text-sm">
             <input type="checkbox" checked={!form.is_active} onChange={(e) => set({ is_active: !e.target.checked })} className="w-[18px] h-[18px]" /> Paused (cannot log in)

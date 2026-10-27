@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api } from "@/platform/lib/api";
 import { getImageUrl } from "@/platform/lib/images";
 import { errorText } from "@/platform/v2/format";
+import { PasswordCard } from "@/platform/v2/PasswordCard";
 import { RoleGate, useSession } from "@/platform/v2/Shell";
 import { Badge, Button, Card, Empty, ErrorNote, Field, NotBuilt, Notice, Page, Table, Td, inputClass } from "@/platform/v2/ui";
 import { AddDoorStaff, RemoveDoorStaff } from "@/platform/v2/org/DoorStaff";
@@ -141,6 +142,7 @@ function Settings() {
         <Team />
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <YourName />
+          <PasswordCard />
         </div>
         <Notice>Need help? Call Ozone Events on +250 784 731 957.</Notice>
       </div>
