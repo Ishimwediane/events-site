@@ -7,7 +7,7 @@ import { fetchAll, ROLE_LABEL, type AdminUser, type GateAssignment } from "@/pla
 import { day, errorText, num } from "@/platform/v2/format";
 import { RoleGate, useSession } from "@/platform/v2/Shell";
 import {
-  Badge, Button, Card, Empty, ErrorNote, Field, inputClass, Loading, Modal, NotBuilt, Page, Stat, StatGrid, Table, Td,
+  Badge, Button, Card, Empty, ErrorNote, Field, inputClass, Loading, Modal, Page, Stat, StatGrid, Table, Td,
 } from "@/platform/v2/ui";
 import { useLoad } from "@/platform/v2/useLoad";
 
@@ -167,7 +167,6 @@ function Users() {
         {!users.length && <Empty>No users match.</Empty>}
       </Card>
 
-      <NotBuilt>Sending a password reset email. Set a new first password when you add someone, and they can change it in Settings.</NotBuilt>
 
       <Modal
         open={editing !== null}
