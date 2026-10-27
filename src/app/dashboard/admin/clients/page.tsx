@@ -137,7 +137,7 @@ function Clients() {
                 <Mini label="Ozone gets" value={rwfLabel(c.ozone)} green />
               </div>
               <div className="text-xs text-[#5B6472]">
-                Deal: Weflexfy {c.gateway_percent ?? "12"}% · developer {c.developer_percent ?? "10"}%{c.gateway_percent === null && c.developer_percent === null ? " (standard)" : ""}
+                {c.gateway_percent === null && c.developer_percent === null ? "No fees: payments are only recorded" : `Deal: Weflexfy ${c.gateway_percent ?? "0"}% · developer ${c.developer_percent ?? "0"}%`}
               </div>
               <div className="text-xs text-[#5B6472]">
                 Can use: {AUTH_LABEL[c.authorization] || c.authorization}{c.can_use_qr ? " · QR scanner" : ""}
@@ -198,17 +198,17 @@ function Clients() {
           <span className="text-sm font-semibold text-[#08283B]">Money deal (% of what customers pay)</span>
           <div className="grid grid-cols-3 gap-2.5">
             <Field label="Weflexfy">
-              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.gateway} onChange={(e) => set({ gateway: e.target.value })} placeholder="12" />
+              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.gateway} onChange={(e) => set({ gateway: e.target.value })} placeholder="0" />
             </Field>
             <Field label="Developer">
-              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.developer} onChange={(e) => set({ developer: e.target.value })} placeholder="10" />
+              <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.developer} onChange={(e) => set({ developer: e.target.value })} placeholder="0" />
             </Field>
             <Field label="Organiser">
               <input type="number" inputMode="decimal" min={0} max={100} step="0.01" className={inputClass} value={form.percent} onChange={(e) => set({ percent: e.target.value })} placeholder="the rest" />
             </Field>
           </div>
           <span className="text-xs text-[#5B6472]">
-            Ozone keeps what is left: {ozoneLeft(form)}. Empty Weflexfy or developer = the standard 12% / 10%; empty organiser = they keep everything after Weflexfy and the developer.
+            Ozone keeps what is left: {ozoneLeft(form)}. Empty Weflexfy or developer = no fee (Edition 3 uses 12% and 10%); empty organiser = they keep everything after the fees.
           </span>
         </div>
         <Field label="They can use">
@@ -235,7 +235,7 @@ function Clients() {
 /** What Ozone keeps under the deal typed in the form, e.g. "28%". */
 function ozoneLeft(f: Form): string {
   const n = (v: string, standard: number) => (v.trim() === "" ? standard : Number(v));
-  const fees = n(f.gateway, 12) + n(f.developer, 10);
+  const fees = n(f.gateway, 0) + n(f.developer, 0);
   if (f.percent.trim() === "") return "0%";
   const left = Math.round((100 - fees - Number(f.percent)) * 100) / 100;
   return left < 0 ? "too much — the total is over 100%" : `${left}%`;
