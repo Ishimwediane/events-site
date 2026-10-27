@@ -127,14 +127,6 @@ export default function LoginPage() {
                         Sign in
                     </button>
 
-                    <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-[#F4F5F7] text-[13px] text-[#4B5563]">
-                        <span className="font-semibold text-[#374151]">Where you land</span>
-                        <span>Clients → their event dashboard</span>
-                        <span>Ozone Events → admin</span>
-                        <span>Developer → earnings and system</span>
-                        <span>Door staff → the ticket scanner</span>
-                    </div>
-
                     <p className="m-0 text-center text-sm text-[#5B6472]">
                         No account yet?{" "}
                         <Link href="/company/register" className="font-semibold text-[#B86E00] hover:underline">
