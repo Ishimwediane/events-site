@@ -10,7 +10,8 @@ import { formatDate, plainText, truncate } from "@/lib/format";
 
 /**
  * A campaign's vote page, shared by /voting/<campaign> and
- * /voting/<campaign>/<nominee> (the latter opens that nominee's vote popup).
+ * /voting/<campaign>/<nominee> (the latter shows only that nominee, with a
+ * Vote button, and a link to the rest).
  * Both routes are cached by Vercel and refreshed every minute, so a click on
  * a shared link is served from the edge instead of being rebuilt per visitor.
  */
@@ -38,7 +39,7 @@ export function campaignMetadata(campaign: PublicCampaign, nominee?: Nominee): M
   };
 }
 
-export default function CampaignVoteView({ campaign, openNomineeId }: { campaign: PublicCampaign; openNomineeId?: string }) {
+export default function CampaignVoteView({ campaign, nomineeId }: { campaign: PublicCampaign; nomineeId?: string }) {
   const closed = campaign.end_date !== null && new Date(campaign.end_date) < new Date();
   const categoryCount = campaign.categories.length;
   const nomineeCount = campaign.categories.reduce((n, c) => n + c.nominees.length, 0);
@@ -49,11 +50,12 @@ export default function CampaignVoteView({ campaign, openNomineeId }: { campaign
         eyebrow="Award Voting"
         title={campaign.title}
         image={imageUrl(campaign.cover_image, "/images/awards.jpg")}
-        height="h-[45vh] md:h-[50vh]"
+        // A nominee's link: a short header so their card is on screen straight away.
+        height={nomineeId ? "h-[26vh] md:h-[32vh]" : "h-[45vh] md:h-[50vh]"}
         compact={campaign.title.length > 40}
       >
-        {/* Same stat row as the /voting hero. */}
-        <div className="flex flex-wrap gap-6 justify-center">
+        {/* Same stat row as the /voting hero; left out on a nominee's short header. */}
+        {!nomineeId && <div className="flex flex-wrap gap-6 justify-center">
           <Stat icon={Vote}>{categoryCount} Categories</Stat>
           <Stat icon={Users}>{nomineeCount} Nominees</Stat>
           <Stat icon={Smartphone}>Vote by MoMo</Stat>
@@ -62,16 +64,16 @@ export default function CampaignVoteView({ campaign, openNomineeId }: { campaign
               {closed ? "Closed" : "Closes"} {formatDate(campaign.end_date)}
             </Stat>
           )}
-        </div>
+        </div>}
       </PageHero>
 
       <section className="section bg-white">
         <div className="container-custom">
           <Link
-            href="/voting"
+            href={nomineeId ? campaignPath(campaign) : "/voting"}
             className="text-gray-600 hover:text-[var(--orange-accent)] transition-colors duration-300 text-sm inline-flex items-center gap-2 mb-12"
           >
-            <ArrowLeft className="w-4 h-4" /> All campaigns
+            <ArrowLeft className="w-4 h-4" /> {nomineeId ? "See all nominees" : "All campaigns"}
           </Link>
 
           <VotePicker
@@ -80,7 +82,7 @@ export default function CampaignVoteView({ campaign, openNomineeId }: { campaign
             closed={closed}
             campaignTitle={campaign.title}
             pagePath={campaignPath(campaign)}
-            openNomineeId={openNomineeId}
+            onlyNomineeId={nomineeId}
           />
         </div>
       </section>

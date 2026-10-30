@@ -8,8 +8,8 @@ import { isEnabled } from "@/config/site";
 /**
  * Two kinds of address share this route:
  *
- *   /voting/<campaign-name>/<nominee-name>   a nominee's own link: the campaign
- *                                            page with their vote popup open,
+ *   /voting/<campaign-name>/<nominee-name>   a nominee's own link: only that
+ *                                            nominee, with a Vote button,
  *                                            previewing as that nominee
  *   /voting/<short-slug>/<public_id>         the API's old public_path, and
  *                                            links shared before: redirected to
@@ -45,7 +45,7 @@ export default async function NomineeOrLegacyPage({ params }: Props) {
   if (campaign) {
     // Unknown nominee name: show the campaign rather than an error.
     if (!nominee) permanentRedirect(campaignPath(campaign));
-    return <CampaignVoteView campaign={campaign} openNomineeId={nominee.id} />;
+    return <CampaignVoteView campaign={campaign} nomineeId={nominee.id} />;
   }
 
   // A link shared before the campaign was renamed.

@@ -40,7 +40,7 @@ export default function VotePicker({
   closed,
   campaignTitle,
   pagePath,
-  openNomineeId,
+  onlyNomineeId,
 }: {
   categories: PublicCampaign["categories"];
   packages: VotePackage[];
@@ -48,16 +48,13 @@ export default function VotePicker({
   campaignTitle: string;
   /** This page's readable path, /voting/<campaign-name> — the base of every share link. */
   pagePath: string;
-  /** The nominee whose own link (/voting/<campaign>/<nominee>) was opened: open their vote popup. */
-  openNomineeId?: string;
+  /** A nominee's own link (/voting/<campaign>/<nominee>): show only that nominee, not the whole list. */
+  onlyNomineeId?: string;
 }) {
   const sorted = [...packages].sort((a, b) => a.number_of_votes - b.number_of_votes);
 
-  const [nominee, setNominee] = useState<Nominee | null>(() =>
-    openNomineeId && !closed
-      ? (categories.flatMap((c) => c.nominees).find((n) => n.id === openNomineeId) ?? null)
-      : null,
-  );
+  // The visitor opens the vote popup themselves with the Vote button.
+  const [nominee, setNominee] = useState<Nominee | null>(null);
   const [share, setShare] = useState<{ title: string; text: string; url: string } | null>(null);
   /** Categories opened with "Show all"; the others show their first nominees only. */
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -134,7 +131,12 @@ export default function VotePicker({
     setPreparedId(null);
   };
 
-  const withNominees = categories.filter((c) => c.nominees.length > 0);
+  // A nominee's own link shows just their card in their category, so a phone
+  // isn't loading and scrolling through every other nominee.
+  const shown = onlyNomineeId
+    ? categories.map((c) => ({ ...c, nominees: c.nominees.filter((n) => n.id === onlyNomineeId) }))
+    : categories;
+  const withNominees = shown.filter((c) => c.nominees.length > 0);
   if (withNominees.length === 0) {
     return <p className="text-center text-gray-600 text-sm py-16">Nominees will be announced soon.</p>;
   }
@@ -154,7 +156,9 @@ export default function VotePicker({
                     {category.name}
                   </h2>
                   <p className="text-gray-600 text-sm mt-1">
-                    {category.nominees.length} {category.nominees.length === 1 ? "nominee" : "nominees"}
+                    {onlyNomineeId
+                      ? "Nominated in this category"
+                      : `${category.nominees.length} ${category.nominees.length === 1 ? "nominee" : "nominees"}`}
                     {category.description && <span className="text-gray-400"> · {category.description}</span>}
                   </p>
                 </div>
