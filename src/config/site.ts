@@ -296,11 +296,11 @@ export const cashAwards = {
     { place: "3rd", name: "People's Choice Recognition Award", amount: "50,000" },
   ],
   rules: [
-    "Every officially approved nominee, in any category, competes.",
-    "Ranked by total valid votes during the official online voting period.",
-    "Only votes on the official Agaciro voting platform count.",
-    "Fraudulent or manipulated votes are disqualified.",
-    "Separate from the category awards; one cash prize per nominee.",
-    "Votes are verified before winners are announced; ties follow the committee's published procedure.",
+    "All nominees in all categories can win.",
+    "The nominees with the most votes win.",
+    "Only votes on this website or by USSD count.",
+    "Fake or cheating votes do not count.",
+    "This is extra to the category awards. Each nominee can win only one cash prize.",
+    "We check all votes before we announce the winners.",
   ],
 } as const;
