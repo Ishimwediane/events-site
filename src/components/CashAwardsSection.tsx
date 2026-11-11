@@ -19,23 +19,23 @@ export default function CashAwardsSection() {
       <div className="absolute top-0 left-0 w-64 h-64 bg-[var(--orange-accent)]/5 rounded-full blur-3xl -ml-32 -mt-32" />
 
       <div className="container-custom relative z-10">
-        <div className="flex flex-col lg:flex-row items-center gap-12">
-          <div className="w-full lg:w-5/12">
+        <div className="flex flex-col lg:flex-row items-center gap-10 xl:gap-14">
+          <div className="w-full lg:w-1/2">
             <ScrollReveal animation="slideInLeft">
-              <div className="relative bg-white rounded-xl overflow-hidden shadow-xl border border-gray-100 max-w-md mx-auto">
+              <div className="relative bg-white rounded-xl overflow-hidden shadow-xl border border-gray-100 max-w-md lg:max-w-none mx-auto">
                 <Image
                   src={cashAwards.flyer}
                   alt={cashAwards.flyerAlt}
                   width={1254}
                   height={1254}
-                  sizes="(min-width: 1024px) 448px, 100vw"
+                  sizes="(min-width: 1024px) 600px, 100vw"
                   className="w-full h-auto"
                 />
               </div>
             </ScrollReveal>
           </div>
 
-          <div className="w-full lg:w-7/12 text-center lg:text-left">
+          <div className="w-full lg:w-1/2 text-center lg:text-left">
             <ScrollReveal animation="slideInRight">
               <h2 className="text-[var(--orange-accent)] text-[10px] md:text-xs font-semibold tracking-[0.3em] uppercase mb-4 inline-block relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-8 after:h-px after:bg-[var(--orange-accent)]/30">
                 {cashAwards.edition}
@@ -45,14 +45,14 @@ export default function CashAwardsSection() {
                 {firstWord}{" "}
                 {rest.length > 0 && <span className="text-[var(--orange-accent)]">{rest.join(" ")}</span>}
               </p>
-              <p className="text-gray-500 text-xs uppercase tracking-[0.2em] mb-4">{cashAwards.tagline}</p>
-              <p className="text-gray-600 text-sm md:text-base mb-8">{cashAwards.intro}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-[0.2em] mb-3">{cashAwards.tagline}</p>
+              <p className="text-gray-600 text-sm md:text-base mb-6">{cashAwards.intro}</p>
 
-              <div className="grid sm:grid-cols-3 gap-4 mb-8 text-left">
+              <div className="grid sm:grid-cols-3 gap-3 mb-6 text-left">
                 {cashAwards.prizes.map((p, i) => (
                   <div
                     key={p.place}
-                    className={`rounded-xl border p-5 shadow-sm ${i === 0 ? "border-[var(--orange-accent)]/40 bg-[var(--orange-accent)]/5" : "border-gray-100"}`}
+                    className={`rounded-xl border p-4 shadow-sm ${i === 0 ? "border-[var(--orange-accent)]/40 bg-[var(--orange-accent)]/5" : "border-gray-100"}`}
                   >
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--orange-accent)] mb-2">
                       <Trophy className="w-4 h-4" />
@@ -66,7 +66,7 @@ export default function CashAwardsSection() {
                 ))}
               </div>
 
-              <ul className="space-y-1.5 text-gray-600 text-[13px] leading-relaxed text-left mb-8">
+              <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-gray-600 text-[13px] leading-snug text-left mb-6">
                 {cashAwards.rules.map((rule) => (
                   <li key={rule} className="flex items-start gap-2">
                     <Check className="w-4 h-4 mt-0.5 shrink-0 text-[var(--orange-accent)]" />
@@ -75,7 +75,7 @@ export default function CashAwardsSection() {
                 ))}
               </ul>
 
-              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-6">
+              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-5">
                 <Link
                   href={cashAwards.votePath}
                   className="bg-[var(--orange-accent)] hover:opacity-90 text-white font-bold px-8 py-3 rounded-lg transition-all duration-300 shadow-xl flex items-center gap-2 text-[9px] tracking-[.3em] uppercase"
@@ -85,7 +85,7 @@ export default function CashAwardsSection() {
                 </Link>
               </div>
 
-              <div className="border-t border-gray-100 pt-5 text-left">
+              <div className="border-t border-gray-100 pt-4 text-left">
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-3">
                   <span className="flex items-center gap-2 text-[var(--primary-blue)] text-sm font-semibold">
                     <CalendarDays className="w-4 h-4 text-[var(--orange-accent)]" />
