@@ -61,13 +61,10 @@ export default function CashAwardsSection() {
               ))}
             </ul>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
+            <div className="flex justify-center">
               <Link href={cashAwards.votePath} className="btn-primary">
                 Vote now
               </Link>
-              <p className="text-gray-400 text-xs">
-                Total prize money <span className="text-white font-semibold">{cashAwards.total} RWF</span>
-              </p>
             </div>
           </div>
         </ScrollReveal>

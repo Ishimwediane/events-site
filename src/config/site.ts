@@ -295,7 +295,6 @@ export const cashAwards = {
     { place: "2nd", name: "People's Choice Excellence Award", amount: "300,000" },
     { place: "3rd", name: "People's Choice Recognition Award", amount: "50,000" },
   ],
-  total: "1,350,000",
   rules: [
     "Every officially approved nominee, in any category, competes.",
     "Ranked by total valid votes during the official online voting period.",
