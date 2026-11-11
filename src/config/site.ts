@@ -287,8 +287,14 @@ export function nominationsWhatsappUrl(): string {
 export const cashAwards = {
   open: true,
   edition: "Agaciro Entertainment Awards 2026 · Edition 3",
-  title: "Top 3 Voting Cash Awards",
-  tagline: "The three most-voted nominees across all categories win cash.",
+  title: "3 Cash Prizes",
+  tagline: "Your vote, your voice, your choice",
+  intro: "The three nominees with the most votes, across all categories, win cash.",
+  flyer: "/image/cash-prizes.jpeg",
+  flyerAlt: "Agaciro Entertainments Awards: 3 cash prizes for the top voted nominees, 18 December 2026 in Kigali",
+  eventDate: "18 December 2026",
+  eventPlace: "Kigali",
+  callNumbers: ["+250 784 731 957", "+250 738 421 387"],
   votePath: "/voting/agaciro-entertainment-awards-2026-edition-3",
   prizes: [
     { place: "1st", name: "Grand People's Choice Award", amount: "1,000,000" },
