@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Hero from "@/components/Hero";
 import FeaturedEvent from "@/components/FeaturedEvent";
 import CashAwardsSection from "@/components/CashAwardsSection";
@@ -40,29 +39,6 @@ export default async function HomePage() {
                   <EventCard event={event} />
                 </ScrollReveal>
               ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* With nothing scheduled, point people at the archive rather than an empty page. */}
-      {!featured && isEnabled("events") && (
-        <section className="py-20 bg-white">
-          <div className="container-custom text-center">
-            <MiniHeader className="mb-6">Between Shows</MiniHeader>
-            <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto mb-8 leading-relaxed">
-              Nothing is on sale right now. Have a look at what we have already staged, or get in
-              touch about your own event.
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
-              {isEnabled("gallery") && (
-                <Link href="/gallery" className="btn-primary">
-                  View the Gallery
-                </Link>
-              )}
-              <Link href="/contact" className="btn-outline">
-                Work With Us
-              </Link>
             </div>
           </div>
         </section>
