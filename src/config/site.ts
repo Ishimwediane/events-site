@@ -279,3 +279,29 @@ export function nominationsWhatsappUrl(): string {
   if (nominations.whatsappGroupLink) return nominations.whatsappGroupLink;
   return `https://wa.me/${nominations.whatsappNumber}?text=${encodeURIComponent(nominations.whatsappMessage)}`;
 }
+
+/**
+ * Edition 3's Top 3 Voting Cash Awards, shown on the homepage after the
+ * upcoming-event call. Set `open` to false to hide it.
+ */
+export const cashAwards = {
+  open: true,
+  edition: "Agaciro Entertainment Awards 2026 · Edition 3",
+  title: "Top 3 Voting Cash Awards",
+  tagline: "The three most-voted nominees across all categories win cash.",
+  votePath: "/voting/agaciro-entertainment-awards-2026-edition-3",
+  prizes: [
+    { place: "1st", name: "Grand People's Choice Award", amount: "1,000,000" },
+    { place: "2nd", name: "People's Choice Excellence Award", amount: "300,000" },
+    { place: "3rd", name: "People's Choice Recognition Award", amount: "50,000" },
+  ],
+  total: "1,350,000",
+  rules: [
+    "Every officially approved nominee, in any category, competes.",
+    "Ranked by total valid votes during the official online voting period.",
+    "Only votes on the official Agaciro voting platform count.",
+    "Fraudulent or manipulated votes are disqualified.",
+    "Separate from the category awards; one cash prize per nominee.",
+    "Votes are verified before winners are announced; ties follow the committee's published procedure.",
+  ],
+} as const;

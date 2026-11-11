@@ -2,6 +2,7 @@ import Link from "next/link";
 import Hero from "@/components/Hero";
 import FeaturedEvent from "@/components/FeaturedEvent";
 import UpcomingSection from "@/components/UpcomingSection";
+import CashAwardsSection from "@/components/CashAwardsSection";
 import ServicesSection from "@/components/ServicesSection";
 import EventRecapSection from "@/components/EventRecapSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
@@ -24,6 +25,8 @@ export default async function HomePage() {
       <Hero />
 
       <UpcomingSection />
+
+      <CashAwardsSection />
 
       {featured && <FeaturedEvent event={featured} />}
 
