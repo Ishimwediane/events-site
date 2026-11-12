@@ -26,8 +26,8 @@ export default function CashAwardsSection() {
                 <Image
                   src={cashAwards.flyer}
                   alt={cashAwards.flyerAlt}
-                  width={1254}
-                  height={1254}
+                  width={1600}
+                  height={1600}
                   sizes="(min-width: 1024px) 500px, 100vw"
                   className="w-full h-auto"
                 />

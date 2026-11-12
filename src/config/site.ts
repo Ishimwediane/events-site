@@ -289,7 +289,7 @@ export const cashAwards = {
   edition: "Agaciro Entertainment Awards 2026 · Edition 3",
   title: "3 Cash Prizes",
   intro: "The three nominees with the most votes, across all categories, win cash.",
-  flyer: "/image/cash-prizes.jpeg",
+  flyer: "/image/cash-prizes-2.jpeg",
   flyerAlt: "Agaciro Entertainments Awards: 3 cash prizes for the top voted nominees, 18 December 2026 in Kigali",
   votePath: "/voting/agaciro-entertainment-awards-2026-edition-3",
   rules: [
