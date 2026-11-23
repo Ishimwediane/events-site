@@ -366,6 +366,51 @@ export async function getPaymentStatus(txnRef: string): Promise<StatusResult | n
   }
 }
 
+export type TicketCheckStatus = "VALID" | "USED" | "CANCELLED" | "EVENT_ENDED" | "NOT_FOUND";
+
+export type TicketCheck =
+  | {
+      status: TicketCheckStatus;
+      code?: string;
+      ticketType?: string;
+      usedAt?: string | null;
+      event?: { title: string; slug: string; startDate: string | null; location: string; flyer: string | null };
+    }
+  | { status: "TOO_MANY" | "ERROR" };
+
+/**
+ * What a phone that scanned a ticket's QR sees. Runs in the browser on purpose:
+ * the backend limits lookups per visitor, which only works if each visitor
+ * calls it from their own address. Shows no buyer details (the API sends none).
+ */
+export async function checkTicket(code: string): Promise<TicketCheck> {
+  try {
+    const res = await fetch(`${API_URL}/tickets/verify/${encodeURIComponent(code)}/`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (res.status === 429) return { status: "TOO_MANY" };
+    if (res.status === 404) return { status: "NOT_FOUND" };
+    if (!res.ok) return { status: "ERROR" };
+    const d = await res.json();
+    return {
+      status: d.status as TicketCheckStatus,
+      code: d.code,
+      ticketType: d.ticket_type,
+      usedAt: d.used_at ?? null,
+      event: d.event && {
+        title: d.event.title,
+        slug: d.event.slug,
+        startDate: d.event.start_date ?? null,
+        location: d.event.location,
+        flyer: d.event.flyer ?? null,
+      },
+    };
+  } catch {
+    return { status: "ERROR" };
+  }
+}
+
 /**
  * Buys tickets. Runs in the browser, so it uses no caching and surfaces the
  * backend's own validation message ("Ticket sale is not active.", "Not enough
