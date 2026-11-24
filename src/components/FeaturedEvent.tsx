@@ -94,9 +94,9 @@ export default function FeaturedEvent({ event }: { event: Event }) {
                       <p className="text-[var(--primary-blue)] text-xl font-bold leading-none mb-1">
                         {formatPrice(tier.price)}
                       </p>
-                      <p className="text-gray-500 text-[10px] leading-snug">
-                        {tier.remaining > 0 ? `${tier.remaining} left` : "Sold out"}
-                      </p>
+                      {tier.remaining <= 0 && (
+                        <p className="text-gray-500 text-[10px] leading-snug">Sold out</p>
+                      )}
                     </div>
                   ))}
                 </div>

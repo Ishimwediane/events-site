@@ -109,7 +109,6 @@ export default function TicketPicker({
                     {variant === "list" && state === "open"
                       ? "Click to purchase"
                       : NOTE[state]}
-                    {variant === "rail" && state === "open" && ` · ${tier.remaining} left`}
                   </p>
                 </div>
                 <div className="text-right">
