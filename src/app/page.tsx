@@ -22,9 +22,9 @@ export default async function HomePage() {
     <>
       <Hero />
 
-      <CashAwardsSection />
-
       {featured && <FeaturedEvent event={featured} />}
+
+      <CashAwardsSection />
 
       {alsoUpcoming.length > 0 && (
         <section className="py-20 bg-white">
