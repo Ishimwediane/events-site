@@ -11,7 +11,7 @@ export type Nominee = {
   id: string; public_id: number; category: string; name: string; bio?: string;
   profile_image?: string | null; votes: number; manual_votes?: number; purchased_votes?: number;
 };
-export type Category = { id: string; campaign: string; name: string; description?: string; nominees: Nominee[] };
+export type Category = { id: string; campaign: string; name: string; description?: string; is_published?: boolean; nominees: Nominee[] };
 export type Package = { id: string; campaign: string; name: string; price: string; number_of_votes: number };
 export type Campaign = {
   id: string; public_id?: number; slug?: string; organizer: string; organizer_name?: string;

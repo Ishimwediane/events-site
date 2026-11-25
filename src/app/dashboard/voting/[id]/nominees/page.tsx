@@ -18,6 +18,57 @@ import {
 
 const multipart = { headers: { "Content-Type": "multipart/form-data" } };
 
+/**
+ * One dropdown per category, like the campaign's Status: publish it, keep it as
+ * a hidden draft (off the public site and USSD, no new votes), rename or delete.
+ */
+function CategoryStatus({ category, onRename, onDelete, onSaved }: {
+  category: Category; onRename: () => void; onDelete: () => void; onSaved: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const published = category.is_published !== false;
+
+  const choose = async (value: string) => {
+    if (value === "rename") return onRename();
+    if (value === "delete") return onDelete();
+    const next = value === "published";
+    if (next === published) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.patch(`/voting/categories/${category.id}/`, { is_published: next });
+      onSaved();
+    } catch (e) {
+      setError(errorText(e, "Could not change the status."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1 text-xs text-[#5B6472]">
+        Status
+        {/* Controlled by the category's status, so Rename/Delete snap back to it. */}
+        <select
+          value={published ? "published" : "draft"}
+          disabled={busy}
+          onChange={(e) => choose(e.target.value)}
+          className={`${inputClass} font-semibold min-w-[220px]`}
+        >
+          <option value="published">Published (visible)</option>
+          <option value="draft">Draft (hidden)</option>
+          <option disabled>──────────</option>
+          <option value="rename">Rename…</option>
+          <option value="delete">Delete…</option>
+        </select>
+      </label>
+      {error && <ErrorNote>{error}</ErrorNote>}
+    </div>
+  );
+}
+
 type CategoryProps = { open: boolean; onClose: () => void; onSaved: (id?: string) => void; campaignId: string; category: Category | null };
 
 /** Popups are mounted only while open, so each opening starts from the current values. */
@@ -169,7 +220,12 @@ function Nominees() {
                 onClick={() => setSelected(x.id)}
                 className={`flex justify-between gap-2 px-3 py-2.5 rounded-[10px] text-sm text-left ${x.id === selectedId ? "bg-[#FEF3E2] text-[#8A5300] font-semibold" : "text-[#374151] hover:bg-[#F4F5F7]"}`}
               >
-                <span className="min-w-0">{x.name}</span>
+                <span className="min-w-0">
+                  {x.name}
+                  {x.is_published === false && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded bg-[#EEF0F3] text-[#5B6472] text-[10px] font-semibold uppercase tracking-wide">Hidden</span>
+                  )}
+                </span>
                 <span className="tabular-nums text-xs text-[#5B6472] pt-0.5">{x.nominees.length}</span>
               </button>
             ))}
@@ -188,10 +244,13 @@ function Nominees() {
           <Card
             title={<span className="text-xl">{category.name}</span>}
             actions={
-              <>
-                <Button small onClick={() => setCatModal({ open: true, category })}>Rename</Button>
-                <Button small kind="danger" onClick={() => remove("category", category)}>Delete category</Button>
-              </>
+              <CategoryStatus
+                key={category.id}
+                category={category}
+                onRename={() => setCatModal({ open: true, category })}
+                onDelete={() => remove("category", category)}
+                onSaved={reload}
+              />
             }
           >
             {category.description && <p className="m-0 -mt-2 text-[13px] text-[#5B6472]">{category.description}</p>}
